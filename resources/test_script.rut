@@ -1,0 +1,28 @@
+//This file is intended to serve as an example for writing rut scripts;
+//These scripts can be used easily to read and write to these database;
+
+write shoes;
+write shoes.newid;
+write shoes.newid;
+write shoes.newid;
+write shoes.newid;
+
+write shoes.child: shoeBrand = "Alden", shoeType, shoeModel, shoeSize, shoeGender;
+
+write rule.shoeBrand: type = "text", min = 0, max = 999;
+write rule.shoeSize: type = "integer", min = 1, max = 14;
+write rule.shoeGender type = "text" min = 0, max = 1;
+
+write database.guinea_pig;
+write guinea_pig.newid: name = 'Cutsie Wutsie', weight = 5;
+write guinea_pig.newid: name = 'Squeaky', weight = 4;
+write database.backpack;
+write backpack.982: who = 'Coolware', specs;
+write backpack.182: who = 'Abbit', specs;
+write specs.model = 'Tragedy 5';
+write specs.width = 10;
+write specs.height = 4;
+
+//read guinea_pig as json to resources\output\guinea_pig.json
+
+//read backpack as xml to resources\output\backpack.xml
