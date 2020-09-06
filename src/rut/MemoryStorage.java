@@ -314,14 +314,21 @@ public class MemoryStorage {
 
 		ConcurrentHashMap<String, Node> dataResults = new ConcurrentHashMap<String, Node>();
 		String nodeName = this.parseNodeName(path);
+
+		
 		ConcurrentHashMap<String, Node> nodeRecords = this.dataMap.get(nodeName);
 
 		for (String fullPath : nodeRecords.keySet()) {
 
 			if (path.contains("Root.")) {
-				fullPath = "Root." + fullPath;
+				
+				path = path.replace("Root.", "");
 			}
-
+		
+			System.out.println("path = |" + path + "|");
+			
+			System.out.println("=-=-=-=-=-=-=-=-=-=-=");
+			
 			if (!fullPath.contains(path)) {
 				continue;
 			} else {
@@ -460,12 +467,7 @@ public class MemoryStorage {
 
 		Node currentNode;
 		ArrayList<Node> resultNodes = new ArrayList<Node>();
-
-		if (nodeName.equals("Root")) {
-			resultNodes.add(this.rootNode);
-
-			return resultNodes;
-		}
+				
 
 		if (!this.dataMap.containsKey(nodeName)) {
 

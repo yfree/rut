@@ -881,7 +881,7 @@ public class Interpreter {
 			String fullPath = this.memory.parseFullPath(parentNames, selectedNodeName);
 			resultNodes = this.memory.justNodes(this.memory.getDataByPath(fullPath, searchRules));
 
-			System.out.println(resultNodes);
+			//System.out.println(resultNodes);
 
 			// resultNodes = memory.getNodesByNamePathContains(selectedNodeName, parents,
 			// searchRules);
