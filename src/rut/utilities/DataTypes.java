@@ -8,7 +8,7 @@ import java.time.format.DateTimeParseException;
 import java.util.Date;
 
 import rut.Definitions;
-import rut.exceptions.InvalidConversionException;
+import rut.InvalidConversionException;
 
 /**
  * This static class is used to convert text to different data types and 

@@ -15,7 +15,7 @@ limitations under the License.
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 */
 
-package rut.exceptions;
+package rut;
 
 /**
  * InvalidConversionExeception is thrown when one of Statement's conversion

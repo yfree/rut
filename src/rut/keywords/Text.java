@@ -1,7 +1,7 @@
 package rut.keywords;
 
+import rut.InvalidConversionException;
 import rut.MemoryStorage;
-import rut.exceptions.InvalidConversionException;
 import rut.utilities.DataTypes;
 import rut.utilities.Randomizer;
 

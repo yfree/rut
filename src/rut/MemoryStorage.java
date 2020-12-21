@@ -56,16 +56,22 @@ public class MemoryStorage {
 
 	private ConcurrentHashMap<String, ConcurrentHashMap<String, Node>> dataMap;
 
+	private boolean killSignal;
+	
+	private boolean writeToDiskSignal;
+
 	/* Keeps track of a universal auto incrementing long. */
 	private long uid;
 
-	public MemoryStorage(ConcurrentHashMap<String, ConcurrentHashMap<String, Node>> theDataMap) {
+	public MemoryStorage(ConcurrentHashMap<String, ConcurrentHashMap<String, Node>> theDataMap) {		
 
-		this.setUid(0);
 		this.dataMap = theDataMap;
-
-		rootNode = this.dataMap.get("Root").get("Root");
-
+		this.rootNode = this.dataMap.get("Root").get("Root");
+		
+		this.killSignal = false;
+		this.writeToDiskSignal = false;
+		
+		this.uid = 0;
 	}
 
 	public Node getRootNode() {
@@ -133,6 +139,11 @@ public class MemoryStorage {
 		this.dataMap.put(nodeName, nodesByName);
 	}
 
+	/* Removes a node from the dataMap */
+	public void removeDataMap(Node node, String fullPath) {
+		//TODO Implement me
+	}
+	
 	/**
 	 * Accepts a string of the full path for a node and parses the node's name (the
 	 * last item in the full path). For instance, if a.b.c.d is provided as input, d
@@ -291,7 +302,23 @@ public class MemoryStorage {
 	public void setUid(long uid) {
 		this.uid = uid;
 	}
+	
+	public boolean getKillSignal() {
+		return this.killSignal;
+	}
 
+	public void setKillSignal(boolean killSignal) {
+		this.killSignal = killSignal;
+	}
+
+	public boolean getWriteToDiskSignal() {
+		return this.writeToDiskSignal;
+	}
+
+	public void setWriteToDiskSignal(boolean writeToDiskSignal) {
+		this.writeToDiskSignal = writeToDiskSignal;
+	}
+	
 	public ConcurrentHashMap<String, ConcurrentHashMap<String, Node>> getDataMap() {
 		return this.dataMap;
 	}
@@ -311,18 +338,19 @@ public class MemoryStorage {
 	 *         are the nodes themselves
 	 */
 	public ConcurrentHashMap<String, Node> getDataByPath(String path, boolean searchRules) {
-
+		path = path.replace("Root.", "");
 		ConcurrentHashMap<String, Node> dataResults = new ConcurrentHashMap<String, Node>();
 		String nodeName = this.parseNodeName(path);
 		ConcurrentHashMap<String, Node> nodeRecords = this.dataMap.get(nodeName);
-
+		
+		if (nodeRecords == null) {
+			return dataResults;
+			
+		}
+		
 		for (String fullPath : nodeRecords.keySet()) {
-
-			if (path.contains("Root.")) {
-				fullPath = "Root." + fullPath;
-			}
-
-			if (!fullPath.contains(path)) {
+	
+			if (!fullPath.contains("." + path) && !(fullPath.startsWith(path))) {
 				continue;
 			} else {
 
@@ -349,10 +377,7 @@ public class MemoryStorage {
 	public LinkedHashMap<String, String> getRulesByRuleSetName(String selectedNodeName) {
 		LinkedHashMap<String, String> theRules = new LinkedHashMap<String, String>();
 
-		ArrayList<String> nodeHierarchy = new ArrayList<String>();
-		nodeHierarchy.add("rule");
-		nodeHierarchy.add(selectedNodeName);
-		Node ruleNode = this.getNodeByHierarchy(nodeHierarchy, true);
+		Node ruleNode = this.getNodeByHierarchy("rule." + selectedNodeName, true);
 
 		if (ruleNode != null) {
 			Set<String> ruleNames = ruleNode.getChildren().keySet();
@@ -375,11 +400,9 @@ public class MemoryStorage {
 	 * @param nodeName
 	 * @return an arrayList of the result nodes
 	 */
-	public ArrayList<Node> getNodesByChildName(String nodeName) {
-		Node currentNode = this.rootNode;
-		ArrayList<Node> resultNodes = new ArrayList<Node>();
+	public ConcurrentHashMap<String, Node> getParentNodesDataByChildName(String nodeName) {
 
-		return getNodesByChildName(nodeName, currentNode, resultNodes, false);
+		return this.getParentNodesDataByChildName(nodeName, false);
 	}
 
 	/**
@@ -390,21 +413,23 @@ public class MemoryStorage {
 	 * @param searchRules search the rule nodes, true or false
 	 * @return
 	 */
-	public ArrayList<Node> getNodesByChildName(String nodeName, boolean searchRules) {
-		Node currentNode = this.rootNode;
-		ArrayList<Node> resultNodes = new ArrayList<Node>();
+	public ConcurrentHashMap<String, Node> getParentNodesDataByChildName(String nodeName, boolean searchRules) {
+		ConcurrentHashMap<String, Node> resultNodesData = new ConcurrentHashMap<String, Node>();
+		
+		ConcurrentHashMap<String, Node> childNodesData = getDataByPath(nodeName, searchRules);
+		String parentName = "";
+		ConcurrentHashMap<String, Node> parentNodesData;
+		
+		for (String fullPath : childNodesData.keySet()) {
+			
+			parentName = this.parseParentName(fullPath);	
+			parentNodesData = this.getDataByPath(parentName, searchRules);	
 
-		return getNodesByChildName(nodeName, currentNode, resultNodes, searchRules);
-	}
-
-	/*
-	 * Get nodes by their name but limit the results to start with a specific node
-	 * as the root node
-	 */
-	public ArrayList<Node> getNodesByChildName(String nodeName, Node currentNode) {
-		ArrayList<Node> resultNodes = new ArrayList<Node>();
-
-		return getNodesByChildName(nodeName, currentNode, resultNodes, false);
+			resultNodesData.putAll(parentNodesData);
+			
+		}
+		
+		return resultNodesData;
 	}
 
 	public ArrayList<Node> getNodesByName(String nodeName) {
@@ -460,12 +485,7 @@ public class MemoryStorage {
 
 		Node currentNode;
 		ArrayList<Node> resultNodes = new ArrayList<Node>();
-
-		if (nodeName.equals("Root")) {
-			resultNodes.add(this.rootNode);
-
-			return resultNodes;
-		}
+				
 
 		if (!this.dataMap.containsKey(nodeName)) {
 
@@ -600,22 +620,22 @@ public class MemoryStorage {
 	 * @param nodeNames
 	 * @return
 	 */
-	public Node getNodeByHierarchy(ArrayList<String> nodeNames) {
+	public Node getNodeByHierarchy(String nodePath) {
 
-		return getNodeByHierarchy(nodeNames, false);
+		return getNodeByHierarchy(nodePath, false);
 	}
 
 	/**
-	 * Gets the first node result of getNodesByHierarchy but allows you to specify
+	 * Gets the first node result of getParentNodesByHierarchy but allows you to specify
 	 * whether or not to include rule nodes in the search results.
 	 * 
-	 * @param nodeNames
+	 * @param String fullPath - the full path of the node
 	 * @param searchRules search the rule nodes, true or false
 	 * @return
 	 */
-	public Node getNodeByHierarchy(ArrayList<String> nodeNames, boolean searchRules) {
+	public Node getNodeByHierarchy(String nodePath, boolean searchRules) {
 
-		ArrayList<Node> temporaryNodes = getNodesByHierarchy(nodeNames, searchRules);
+		ArrayList<Node> temporaryNodes = this.justNodes(this.getParentNodesDataByHierarchy(nodePath, searchRules));
 		if (temporaryNodes.size() > 0) {
 			return temporaryNodes.get(0);
 		} else {
@@ -720,76 +740,27 @@ public class MemoryStorage {
 	 * @return
 	 */
 
-	public ArrayList<Node> getNodesByHierarchy(ArrayList<String> nodeNames) {
+	public ConcurrentHashMap<String, Node> getParentNodesDataByHierarchy(String nodePath) {
 
-		return getNodesByHierarchy(nodeNames, false);
+		return getParentNodesDataByHierarchy(nodePath, false);
 	}
 
 	/**
 	 * 
-	 * @param nodeNames   the hierarchy of nodes to search
+	 * @param nodePath   the hierarchy of nodes to search
 	 * @param searchRules true or false, include rules in search results
-	 * @return
+	 * @return the PARENT of the second to last node in the hierarchy if it contains the child (the last node)
+	 * for instance, if I search for x.y.z, if 'z' is a child of 'y', it will return y.
+	 * This may sound strange, why aren't we just getting node z? 
+	 * Remember, when node operations are performed, it is performed on the PARENT
+	 * node, because the parent node contains a HashMap linking its children. 
+	 * We ALWAYS need a parent node and a child name to do a node lookup
 	 */
-	public ArrayList<Node> getNodesByHierarchy(ArrayList<String> nodeNames, boolean searchRules) {
+	public ConcurrentHashMap<String, Node> getParentNodesDataByHierarchy(String nodePath, boolean searchRules) {
+		
+		String parentPath = this.parseParentName(nodePath);
 
-		ArrayList<String> nodeNamesCopy = new ArrayList<String>(nodeNames);
-		ArrayList<Node> firstNodes;
-		ArrayList<Node> resultNodes = new ArrayList<Node>();
-
-		int currentNamesIndex = 0;
-		String currentNodeName = "";
-		Node currentNode;
-
-		if (nodeNamesCopy.get(0).equals("Root")) {
-
-			firstNodes = new ArrayList<Node>();
-			firstNodes.add(this.rootNode);
-
-		} else {
-
-			firstNodes = this.getNodesByName(nodeNamesCopy.get(0), searchRules);
-
-		}
-
-		/* The first node has been processed, nodeNames retains the first element */
-		nodeNamesCopy.remove(0);
-
-		for (Node firstNode : firstNodes) {
-
-			currentNamesIndex = 0;
-			currentNodeName = "";
-			currentNode = firstNode;
-
-			while (currentNamesIndex != nodeNamesCopy.size()) {
-
-				currentNodeName = nodeNamesCopy.get(currentNamesIndex);
-
-				if (currentNodeName.equals("Child")) {
-
-					resultNodes.addAll(
-							this.getChildKeyWordResults(nodeNames, currentNamesIndex, currentNode, searchRules));
-					currentNode = null;
-					break;
-				}
-				currentNamesIndex++;
-				currentNode = currentNode.getChild(currentNodeName);
-
-				if (currentNode == null) {
-
-					break;
-
-				}
-			}
-
-			if (currentNode != null) {
-
-				resultNodes.add(currentNode);
-			}
-
-		}
-
-		return resultNodes;
+		return this.getDataByPath(parentPath, searchRules);	
 	}
 
 	/**
@@ -834,28 +805,6 @@ public class MemoryStorage {
 		return new ArrayList<String>();
 	}
 
-	/*
-	 * Adds a node with the specified name and value to the parent node that is
-	 * passed as the first parameter This method always creates a new node.
-	 */
-	public void addNodeChild(Node parentNode, String nodeName, String nodeValue) {
-
-		Node newNode = new Node();
-
-		if (nodeValue != null) {
-			newNode.setValue(nodeValue);
-		}
-
-		parentNode.setChild(nodeName, newNode);
-	}
-
-	/*
-	 * Adds a node without a value to the parent node that is passed as the first
-	 * parameter
-	 */
-	public void addNodeChild(Node parentNode, String nodeName) {
-		this.addNodeChild(parentNode, nodeName, null);
-	}
 
 	/*
 	 * Deletes a node (via the parent). Returns the number of nodes deleted by the
@@ -889,10 +838,7 @@ public class MemoryStorage {
 	 */
 	public void createDefaultRuleSet(String selectedNodeName) {
 
-		ArrayList<String> nodeHierarchy = new ArrayList<String>();
-		nodeHierarchy.add("rule");
-		nodeHierarchy.add(selectedNodeName);
-		Node ruleNode = this.getNodeByHierarchy(nodeHierarchy, true);
+		Node ruleNode = this.getNodeByHierarchy("rule." + selectedNodeName, true);
 
 		if (ruleNode != null) {
 
@@ -906,11 +852,11 @@ public class MemoryStorage {
 
 				if (Definitions.nodeRuleDefaultValues.containsKey(ruleName)) {
 
-					this.addNodeChild(ruleNode, ruleName, Definitions.nodeRuleDefaultValues.get(ruleName));
+					ruleNode.addNodeChild(ruleName, Definitions.nodeRuleDefaultValues.get(ruleName));
 
 				} else {
 
-					this.addNodeChild(ruleNode, ruleName);
+					ruleNode.addNodeChild(ruleName);
 
 				}
 
@@ -1013,43 +959,7 @@ public class MemoryStorage {
 	}
 
 	/**
-	 * This the private implementation of getNodesByChildName with all of the extra
-	 * parameters that are automatically populated in the public method.
-	 * 
-	 * @param nodeName
-	 * @param currentNode
-	 * @param resultNodes
-	 * @return an ArrayList of the matching nodes
-	 */
-
-	private ArrayList<Node> getNodesByChildName(String nodeName, Node currentNode, ArrayList<Node> resultNodes,
-			boolean searchRules) {
-		Node nextNode;
-		// If its a LeafNode, stop traversing
-		if (currentNode.getChildren().isEmpty()) {
-			return resultNodes;
-		}
-		if (currentNode.getChildren().keySet().contains(nodeName)) {
-			resultNodes.add(currentNode);
-		}
-
-		for (String key : currentNode.getChildren().keySet()) {
-
-			/* Skip rules from being traversed if specified */
-			if (!searchRules && key.equals("rule")) {
-
-				continue;
-			}
-
-			nextNode = currentNode.getChild(key);
-			resultNodes = this.getNodesByChildName(nodeName, nextNode, resultNodes, searchRules);
-		}
-		return resultNodes;
-
-	}
-
-	/**
-	 * This is a helper method for getNodesByHierarchy. The method retrieves the
+	 * This is a helper method for getParentNodesByHierarchy. The method retrieves the
 	 * nodes that come from a parent - child structure encountering the 'child'
 	 * keyword. Once child keyword is resolved to the node children names, the nodes
 	 * are traversed.

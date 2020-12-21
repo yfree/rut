@@ -27,7 +27,6 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import rut.exceptions.InvalidConversionException;
 import rut.utilities.DataTypes;
 import rut.utilities.Randomizer;
 
@@ -90,6 +89,13 @@ public class Statement {
 	 * the item's value will be empty
 	 */
 	private LinkedHashMap<String, String> childrenNamesValues;
+
+	/**
+	 * The format that the statement is requested to be returned in.
+	 * Valid options are: RutFormat, XML, JSON
+	 * TODO: implement, at the moment this will default to standard RutFormat
+	 */
+	private String dataFormat = "RutFormat";
 
 	/**
 	 * The portion of the string following a 'where' Todo: ensure this is enforced
@@ -406,6 +412,15 @@ public class Statement {
 		this.whereConditionRules = whereConditionRules;
 	}
 
+	
+	public String getDataFormat() {
+		return this.dataFormat;
+	}
+
+	public void setDataFormat(String dataFormat) {
+		this.dataFormat = dataFormat;
+	}
+	
 	public int getIterations() {
 		return this.iterations;
 	}
@@ -445,7 +460,30 @@ public class Statement {
 		nodeHierarchy.add(this.selectedNodeName);
 		return nodeHierarchy;
 	}
-
+	
+	/**
+	 * Returns the full node hierarchy parsed in the user statement, in other words,
+	 * the parent names followed by the selected node name like so: 
+	 * parent1.parent2
+	 * 
+	 * @return A new String
+	 */
+	public String getNodeParentString() {
+		ArrayList<String> nodeHierarchy = new ArrayList<String>(this.parentNames);
+		return String.join(".", nodeHierarchy); 
+	}
+	
+	/**
+	 * Returns the full node hierarchy parsed in the user statement, in other words,
+	 * the parent names followed by the selected node name like so: 
+	 * parent1.parent2.selectedNodeName
+	 * 
+	 * @return A new String
+	 */
+	public String getNodeHierarchyString() {
+		
+		return String.join(".", this.getNodeHierarchy()); 
+	}
 	/**
 	 * Gets a list of tokens corresponding to a specific keyword. Keyword tokens are
 	 * grouped with the token as the key and specific keyword as the value, so token
