@@ -31,8 +31,6 @@ The Rut Database Interpreter is the engine that runs Rut Database operations.
  
  * boolean getWriteToDiskSignal()
  
- * boolean getRunningScriptSignal()
- 
  * long getUid()  
  
  * long generateUid()
@@ -52,7 +50,6 @@ import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import rut.exceptions.InvalidConversionException;
 import rut.keywords.Decimal;
 import rut.keywords.FirstNameFemale;
 import rut.keywords.FirstNameMale;
@@ -65,6 +62,9 @@ import rut.keywords.Date;
 //import rut.keywords.Integer;
 
 import rut.keywords.Time;
+import rut.operation.InvalidOperationException;
+import rut.operation.Operation;
+import rut.operation.OperationFactory;
 import rut.keywords.LastName;
 import rut.utilities.DataTypes;
 
@@ -102,7 +102,14 @@ public class Interpreter {
 	}
 
 	public String processStatement(Statement statement) {
+		
+		Set<String> errorMessages = statement.getErrorMessages();
+		if (errorMessages.size() > 0) {
 
+			return String.join("\n", errorMessages);
+
+		}
+		
 		int iterations = statement.getIterations();
 		StringBuilder response = new StringBuilder();
 		String iterationResponse = "";
@@ -164,12 +171,55 @@ public class Interpreter {
 		return response.toString();
 	}
 
+	public String runStatementIteration(Statement statement) {
+		
+		String response = "";
+		
+		/*
+		 * Keywords that are specific to node traversal (root, child) are processed
+		 * later when the node trees are traversed
+		 */
+		this.processKeywords(statement);
+		/*
+		 * The second and final level of error checking is performed. This type of error
+		 * checking is called interpreter error checking, error checking that requires
+		 * access to the data and cannot be done by the statement parser based on the
+		 * statement syntax alone. This error checking is only done if the operation is
+		 * currently on the the operations that checkForOpErrors tests for.
+		 */
+		String[] operationsToCheck = { "write", "enforce" };
+		ArrayList<String> operationsToCheckFor = new ArrayList<String>(Arrays.asList(operationsToCheck));
+
+		if (operationsToCheckFor.contains(statement.getOperation())) {
+			/*
+			 * If errors are discovered by checkForOpErrors(), 
+			 * the operation is changed to 'display error'.
+			 */
+
+			this.checkForOpErrors(statement);
+
+		}
+		
+		
+		try {
+			Operation operation = OperationFactory.createOperation(statement, this.memory);
+			response = operation.execute();
+			this.writeToDiskSignal = this.memory.getWriteToDiskSignal();
+			this.killSignal = this.memory.getKillSignal();
+		} catch (InvalidOperationException e) {
+			return "Could not execute operation due to a system error.";
+		}
+		
+		return response;
+	}
+	
+	
 	/*
 	 * This is the main method of the interpreter. A statement is passed as input
 	 * and the correct operation is performed. The result of the operation is
 	 * returned as a String.
 	 */
-	public String runStatementIteration(Statement statement) {
+	public String runStatementIterationOld(Statement statement) {
 
 		String response = "";
 
@@ -227,12 +277,11 @@ public class Interpreter {
 
 		case "delete":
 
-			response = this.executeOpDelete(selectedNodeName, childrenNamesValues, parentNames, whereConditionRules);
+			response = "";
 			break;
 
 		case "rename":
-			response = this.executeOpRename(selectedNodeName, selectedNodeValue, childrenNamesValues, parentNames,
-					whereConditionRules);
+			response = "";
 			break;
 
 		case "exit":
@@ -266,11 +315,6 @@ public class Interpreter {
 		return response;
 	}
 
-	public boolean getKillSignal() {
-
-		return this.killSignal;
-	}
-
 	public boolean getWriteToDiskSignal() {
 		return this.writeToDiskSignal;
 	}
@@ -298,7 +342,10 @@ public class Interpreter {
 	public void setDisk(DiskStorage disk) {
 		this.disk = disk;
 	}
-
+	
+	public boolean getKillSignal() {
+		return this.killSignal;
+	}
 	/**
 	 * The error checking performed by this method is only done after the
 	 * instruction was accepted by the parser to be valid. Certain errors are data
@@ -345,7 +392,7 @@ public class Interpreter {
 			 */
 			if (!ruleSetName.equals(selectedNodeName)) {
 
-				Node testNode = this.memory.getNodeByHierarchy(statement.getNodeHierarchy(), true);
+				Node testNode = this.memory.getNodeByHierarchy(statement.getNodeHierarchyString(), true);
 				if (testNode == null) {
 
 					statement.addError("Rule set " + ruleSetName
@@ -571,14 +618,19 @@ public class Interpreter {
 
 				/* Check if the node exists */
 				writtenNode = nodeParentToWriteTo.getChild(childNodeName);
-				writtenNode = (writtenNode == null) ? new Node(): writtenNode;
-				String nodeValue = selectedNodeValue.isEmpty() ? "" : selectedNodeValue;
+				if (writtenNode != null) {
+					writtenNode.setValue(selectedNodeValue);					
+				}
+				else {
+				
+					writtenNode = new Node(selectedNodeValue);
+					this.memory.addDataMap(writtenNode, fullPath + "." + childNodeName);
+					
+				}
 
-				writtenNode.setValue(nodeValue);
-				this.memory.addDataMap(writtenNode, fullPath + "." + childNodeName);
 
 				nodesToWriteCount++;
-				nodesToWriteCount += this.generateChildrenNodes(writtenNode, childrenNamesValues);
+			//	nodesToWriteCount += this.generateChildrenNodes(writtenNode, childrenNamesValues);
 			}
 		}
 
@@ -591,101 +643,6 @@ public class Interpreter {
 
 		return this.generateResultMessage("written to", nodesToWriteCount);
 	}
-
-	/* Deletes one or more nodes from the database. */
-	private String executeOpDelete(String selectedNodeName, LinkedHashMap<String, String> childrenNamesValues,
-			ArrayList<String> parentNames, LinkedHashMap<String, ArrayList<String>> whereConditionRules) {
-
-		boolean searchRules = parentNames.contains("rule");
-
-		int deletedNodesCount = 0;
-
-		ArrayList<Node> fetchedNodes = new ArrayList<Node>();
-		if (parentNames.isEmpty()) {
-
-			fetchedNodes = this.memory.getNodesByChildName(selectedNodeName, searchRules);
-
-		} else {
-
-			fetchedNodes = this.memory.getNodesByHierarchy(parentNames, searchRules);
-		}
-
-		ArrayList<String> childNodeNames = new ArrayList<String>();
-		for (Node fetchedNode : fetchedNodes) {
-
-			if (selectedNodeName.equals("Child")) {
-				ArrayList<String> parentNamesCopy = new ArrayList<String>(parentNames);
-				parentNamesCopy.add("Child");
-				childNodeNames = memory.resolveChildKeyWord(parentNamesCopy, searchRules);
-			} else {
-				childNodeNames.add(selectedNodeName);
-			}
-
-			for (String childNodeName : childNodeNames) {
-
-				deletedNodesCount += this.memory.deleteNode(fetchedNode, childNodeName);
-
-			}
-
-		}
-
-		/* Signal to save to disk because changes have been made. */
-		if (deletedNodesCount > 0) {
-
-			this.writeToDiskSignal = true;
-
-		}
-
-		return this.generateResultMessage("deleted", deletedNodesCount);
-	}
-
-	/* Renames one or more nodes in the database */
-	private String executeOpRename(String selectedNodeName, String selectedNodeValue,
-			LinkedHashMap<String, String> childrenNamesValues, ArrayList<String> parentNames,
-			LinkedHashMap<String, ArrayList<String>> whereConditionRules) {
-
-		boolean searchRules = parentNames.contains("rule");
-
-		int renamedNodesCount = 0;
-
-		ArrayList<Node> fetchedNodes = new ArrayList<Node>();
-
-		if (parentNames.isEmpty()) {
-
-			fetchedNodes = this.memory.getNodesByChildName(selectedNodeName, searchRules);
-
-		} else {
-
-			fetchedNodes = this.memory.getNodesByHierarchy(parentNames, searchRules);
-
-		}
-
-		for (Node fetchedNode : fetchedNodes) {
-
-			/*
-			 * Check to see if there is a node under the parent with the name that will be
-			 * used as the new name. You cannot have two nodes with the same name as
-			 * children of the same parent...
-			 */
-			Node testNode = this.memory.getNodeByName(selectedNodeValue, searchRules);
-
-			if (testNode == null) {
-
-				renamedNodesCount += this.memory.renameNode(fetchedNode, selectedNodeName, selectedNodeValue);
-
-			}
-		}
-
-		/* Signal to save to disk because changes have been made. */
-		if (renamedNodesCount > 0) {
-
-			this.writeToDiskSignal = true;
-
-		}
-
-		return this.generateResultMessage("renamed", renamedNodesCount);
-	}
-
 	/**
 	 * If a write operation is performed where a rule is being written, it will be
 	 * handled by this method. Prerequisite: Syntax level checking has been
@@ -713,7 +670,7 @@ public class Interpreter {
 	}
 
 	private String executeOpExit() {
-		this.killSignal = true;
+		this.memory.setKillSignal(true);
 		return "Goodbye.";
 	}
 
@@ -970,15 +927,27 @@ public class Interpreter {
 	 */
 	private ConcurrentHashMap<String, Node> getParentDataToWriteTo(ArrayList<String> parentNames,
 			String selectedNodeName, boolean searchRules) {
-
+/*
 		String searchString = selectedNodeName;
 		String parentString = String.join(".", parentNames);
 
 		if (parentNames.size() > 0) {
 			searchString = parentString + "." + searchString;
 		}
+*/
+		String searchString;
+		
+		/*If no parent names are in the search path, just the selected node name*/
+		if (parentNames.size() == 0) {
+	
+			searchString = selectedNodeName;
 
-		System.out.println("Search String " + searchString);
+		}
+		else {
+			
+			searchString = String.join(".", parentNames);
+			
+		}
 		ConcurrentHashMap<String, Node> parentsToWriteToData = memory.getDataByPath(searchString, searchRules);
 
 		return parentsToWriteToData;
@@ -1486,7 +1455,7 @@ public class Interpreter {
 					}
 
 					if (nodeHierarchy.size() > 0) {
-						testNode = memory.getNodeByHierarchy(nodeHierarchy);
+						testNode = memory.getNodeByHierarchy(statement.getNodeHierarchyString());
 						if (testNode != null) {
 							if (testNode.getValue().equals(nodeValue)) {
 
@@ -1632,9 +1601,8 @@ public class Interpreter {
 		 */
 
 		int separatorSize = this.getSeparatorSize(resultString.toString());
-		String separator = this.createSeparator(separatorSize);
 
-		return separator + "\n" + resultString.toString() + separator;
+		return resultString.toString();
 
 	}
 
@@ -1657,19 +1625,4 @@ public class Interpreter {
 		return largestSize;
 	}
 
-	private String createSeparator(int separatorSize) {
-
-		StringBuilder separator = new StringBuilder();
-
-		if (separatorSize > 64) {
-
-			separatorSize = 64;
-		}
-
-		for (int i = 0; i < separatorSize; i++) {
-			separator.append("=");
-		}
-
-		return separator.toString();
-	}
 }

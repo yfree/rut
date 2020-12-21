@@ -1,6 +1,5 @@
 package rut.dataFormat;
 
-import rut.Node;
 
 /**
 JSON support is implemented in this class
@@ -8,17 +7,10 @@ JSON support is implemented in this class
  * @version dev 0.1
  */
 /*TODO: Implement */
-public class JSON implements DataFormat{
+public class JSON extends DataFormat{
 
 	public JSON() {
 		
 	}
 	
-	public Node convertFrom(String text) {
-		return new Node();
-	}
-	
-	public String convertTo(Node rootNode) {
-		return "";
-	}
 }

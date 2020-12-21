@@ -124,7 +124,7 @@ public class Shell {
 
 		while (!this.killSignal) {
 
-			System.out.print("rut~> ");
+			System.out.print("rut-> ");
 			this.input = statementScanner.next();
 
 			this.statement.parseStatement(input);
