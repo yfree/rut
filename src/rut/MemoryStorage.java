@@ -103,9 +103,12 @@ public class MemoryStorage {
 	/* Adds a node to the dataMap */
 	public void addDataMap(Node node, String fullPath) {
 
+		/* Normalize Data Map entry by removing the Root keyword */
+		fullPath = fullPath.replace("Root.", "");
+		
 		String nodeName = this.parseNodeName(fullPath);
 		String parentName = this.parseParentName(fullPath);
-
+		
 		ConcurrentHashMap<String, Node> nodesByName = this.dataMap.get(nodeName);
 
 		/* If record for nodes with that name doesn't exist, create the HashMap */
@@ -178,14 +181,17 @@ public class MemoryStorage {
 	 */
 	private String parseParentName(String fullPath) {
 
-		String parentName = "";
+		/* Default entry is 'Root'. This will be normalized to the proper path 
+		 * without that word through the pipe line, but for now it's easiest this way.
+		 */
+		
+		String parentName = "Root";
+
 		int lastDot = 0;
 
 		if (fullPath.contains(".")) {
 			lastDot = fullPath.lastIndexOf('.');
 			parentName = fullPath.substring(0, lastDot);
-		} else {
-			parentName = "Root";
 		}
 
 		return parentName;

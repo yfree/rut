@@ -13,6 +13,8 @@ public class Read extends Operation {
 	public Read(Statement opStatement, MemoryStorage memory) {
 		super(opStatement, memory);
 		this.opVerbPastTense = "read";
+		this.fetchedNodesData = this.memory.getDataByPath("Root", true);
+		
 	}
 	
 	protected int processNodeData(String fullPath, Node fetchedNode) {
