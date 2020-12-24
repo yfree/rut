@@ -40,17 +40,20 @@ public abstract class Operation {
 	protected ArrayList<String> outputBufferRows;
 	public String opVerbPastTense;
 	public String childNameToProcess;
+	ConcurrentHashMap<String, Node> fetchedNodesData;
 
-	public Operation(Statement opStatement, MemoryStorage memoryStorage) {
+	public Operation(Statement opStatement, MemoryStorage memoryStorage){
 
 		this.statement = opStatement;
 		this.memory = memoryStorage;
 		this.dataFormat = opStatement.getDataFormat();
 		this.outputBufferRows = new ArrayList<String>();
 		this.processedNodesCount = 0;
-
+		this.fetchedNodesData = new ConcurrentHashMap<String, Node>();
+	
+		
 	}
-
+	
 	/*
 	 * Redo this method in its entirety! The default execute() method performs
 	 * processNode() on every node fetched. Nodes are identified for fetching using
@@ -60,54 +63,52 @@ public abstract class Operation {
 	 */
 	public String execute() {
 
-		String selectedNodeName = statement.getSelectedNodeName();
+		this.childNameToProcess = this.statement.getSelectedNodeName();
+		
 		String selectedNodeValue = statement.getSelectedNodeValue();
 		LinkedHashMap<String, String> childrenNamesValues = statement.getChildrenNamesValues();
 		ArrayList<String> parentNames = statement.getParentNames();
 		String nodeHierarchy = statement.getNodeHierarchyString();
-
 		LinkedHashMap<String, ArrayList<String>> whereConditionRules = statement.getWhereConditionRules();
-		String operation = statement.getOperation();
-		Set<String> statementErrors = statement.getErrorMessages();
-
 		boolean searchRules = parentNames.contains("rule");
-
-		ConcurrentHashMap<String, Node> fetchedNodesData = new ConcurrentHashMap<String, Node>();
-
-		this.childNameToProcess = this.statement.getSelectedNodeName();
+		ConcurrentHashMap<String, Node> nodesData = new ConcurrentHashMap<String, Node>();
+		
 
 		/*We need a parent node and a child name to do processing. 
 		 *We are now going to fetch the parent node */
 		
 		if (this.statement.getNodeHierarchyString().equals("Root")) {
 
-			fetchedNodesData.put("", this.memory.getRootNode());
+			nodesData = this.memory.getDataByPath("Root", true);
+			
 		} else if (parentNames.isEmpty()) {
-
-			fetchedNodesData = this.memory.getParentNodesDataByChildName(this.childNameToProcess, searchRules);
+	
+			nodesData = this.memory.getParentNodesDataByChildName(this.childNameToProcess, searchRules);
 
 		} else {
 
-			fetchedNodesData = this.memory.getParentNodesDataByHierarchy(nodeHierarchy, searchRules);
+			nodesData = this.memory.getParentNodesDataByHierarchy(nodeHierarchy, searchRules);
 			/*
 			 * We have retrieved the parent node but still have to check if this node has a
 			 * child with the required child node name we are searching for
 			 */
-			fetchedNodesData = this.filterNodesDataWithoutChild(fetchedNodesData);
+			nodesData = this.filterNodesDataWithoutChild(nodesData);
 		}
 		
-		for (String fullPath : fetchedNodesData.keySet()) {
-/*
-			if (fullPath.equals("Root")) {
-				fullPath = "";
-			}
-*/
-			System.out.println(fullPath);
-			
-			this.processedNodesCount += this.processNodeData(fullPath, fetchedNodesData.get(fullPath));
-
+		
+		/* If nodesData has fetched values, we want to keep it. Otherwise, we want fetchedNodesData to contain a 
+		 * default value. */
+		if (!nodesData.isEmpty()) {
+			this.fetchedNodesData = nodesData;	
 		}
+		
+		
+		
+		for (String fullPath : this.fetchedNodesData.keySet()) {
 
+			this.processedNodesCount += this.processNodeData(fullPath, this.fetchedNodesData.get(fullPath));
+		}
+ 
 		return this.generateResponse();
 	}
 
@@ -158,11 +159,6 @@ public abstract class Operation {
 			resultMessage.append(this.processedNodesCount.toString() + " nodes " + 
 					this.opVerbPastTense + ".");
 		}
-
-		/* Clear member variables as result message is returned */
-		this.dataFormat = "";
-		this.outputBufferRows = new ArrayList<String>();
-		this.processedNodesCount = 0;
 		
 		return resultMessage.toString();
 	}
