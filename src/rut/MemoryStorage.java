@@ -339,6 +339,7 @@ public class MemoryStorage {
 	 */
 	public ConcurrentHashMap<String, Node> getDataByPath(String path, boolean searchRules) {
 		path = path.replace("Root.", "");
+		
 		ConcurrentHashMap<String, Node> dataResults = new ConcurrentHashMap<String, Node>();
 		String nodeName = this.parseNodeName(path);
 		ConcurrentHashMap<String, Node> nodeRecords = this.dataMap.get(nodeName);

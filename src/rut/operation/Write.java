@@ -1,6 +1,5 @@
 package rut.operation;
 
-import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 
 import rut.MemoryStorage;
@@ -17,13 +16,20 @@ public class Write extends Operation {
 	
 	protected int processNodeData(String fullPath, Node fetchedNode) {
 
+		/* Handle Root Node */
+		StringBuilder finalPath = new StringBuilder();
+		finalPath.append(fullPath);
+		if (finalPath.length() > 0) {
+			finalPath.append(".");
+		}
+		
 		Node currentNode = fetchedNode.getChild(this.childNameToProcess);
 		if (currentNode == null) {
 		
 			fetchedNode.addNodeChild(this.childNameToProcess, this.statement.getSelectedNodeValue());
 			currentNode = fetchedNode.getChild(this.childNameToProcess);
 			
-			this.memory.addDataMap(currentNode, fullPath + "." + this.childNameToProcess);
+			this.memory.addDataMap(currentNode, finalPath.toString() + this.childNameToProcess);
 		
 		}
 		else {

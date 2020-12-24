@@ -11,42 +11,44 @@ public class OperationFactory {
 		
 		switch (opName) {
 
-		case "read":
-			return new Read(opStatement, memory);
+		case "begin":
+			return new Begin(opStatement, memory);
 			
-		case "write":
-			return new Write(opStatement, memory);
-
-		case "enforce":
-			return new Enforce(opStatement, memory);
-
+		case "comment":
+			return new Comment(opStatement, memory);
+			
+		case "commit":
+			return new Commit(opStatement, memory);	
+			
 		case "delete":
 			return new Delete(opStatement, memory);
-
-		case "rename":
-			return new Rename(opStatement, memory);
+			
+		case "enforce":
+			return new Enforce(opStatement, memory);	
 
 		case "exit":
 			return new Exit(opStatement, memory);
 
-		case "begin":
-			return new Begin(opStatement, memory);
+		case "read":
+			return new Read(opStatement, memory);
+			
+		case "redo":
+			return new Redo(opStatement, memory);
 
-		case "commit":
-			return new Commit(opStatement, memory);
+		case "rename":
+			return new Rename(opStatement, memory);
 
 		case "rollback":
 			return new RollBack(opStatement, memory);
 
-		case "display error":
-			return new DisplayError(opStatement, memory);
-
-		case "comment":
-			return new Comment(opStatement, memory);
+		case "undo":
+			return new Undo(opStatement, memory);
+			
+		case "write":
+			return new Write(opStatement, memory);
 
 		default:
 			throw new InvalidOperationException();
 		}
-
 	}
 }
