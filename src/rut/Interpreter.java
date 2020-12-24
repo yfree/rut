@@ -185,21 +185,19 @@ public class Interpreter {
 		 * checking is called interpreter error checking, error checking that requires
 		 * access to the data and cannot be done by the statement parser based on the
 		 * statement syntax alone. This error checking is only done if the operation is
-		 * currently on the the operations that checkForOpErrors tests for.
+		 * currently one of the operations that checkForOpErrors tests for.
 		 */
 		String[] operationsToCheck = { "write", "enforce" };
 		ArrayList<String> operationsToCheckFor = new ArrayList<String>(Arrays.asList(operationsToCheck));
 
 		if (operationsToCheckFor.contains(statement.getOperation())) {
-			/*
-			 * If errors are discovered by checkForOpErrors(), 
-			 * the operation is changed to 'display error'.
-			 */
-
-			this.checkForOpErrors(statement);
-
+			if (!this.checkForOpErrors(statement)) {
+				Set<String> errorMessages = statement.getErrorMessages();
+				if (errorMessages.size() > 0) {
+					return String.join("\n", errorMessages);
+				}	
+			}
 		}
-		
 		
 		try {
 			Operation operation = OperationFactory.createOperation(statement, this.memory);
@@ -213,108 +211,6 @@ public class Interpreter {
 		return response;
 	}
 	
-	
-	/*
-	 * This is the main method of the interpreter. A statement is passed as input
-	 * and the correct operation is performed. The result of the operation is
-	 * returned as a String.
-	 */
-	public String runStatementIterationOld(Statement statement) {
-
-		String response = "";
-
-		/*
-		 * Keywords that are specific to node traversal (root, child) are processed
-		 * later when the node trees are traversed
-		 */
-		this.processKeywords(statement);
-
-		/*
-		 * The second and final level of error checking is performed. This type of error
-		 * checking is called interpreter error checking, error checking that requires
-		 * access to the data and cannot be done by the statement parser based on the
-		 * statement syntax alone. This error checking is only done if the operation is
-		 * currently on the the operations that checkForOpErrors tests for.
-		 */
-		String[] operationsToCheck = { "write", "enforce" };
-		ArrayList<String> operationsToCheckFor = new ArrayList<String>(Arrays.asList(operationsToCheck));
-
-		if (operationsToCheckFor.contains(statement.getOperation())) {
-			/*
-			 * If errors are discovered by checkForOpErrors(), the operation is changed to
-			 * 'error'. Therefore it is not necessary to evaluate the checkForOpError()
-			 * return value, although it becomes false after the first error is discovered.
-			 */
-
-			this.checkForOpErrors(statement);
-
-		}
-
-		String selectedNodeName = statement.getSelectedNodeName();
-		String selectedNodeValue = statement.getSelectedNodeValue();
-		LinkedHashMap<String, String> childrenNamesValues = statement.getChildrenNamesValues();
-		ArrayList<String> parentNames = statement.getParentNames();
-		LinkedHashMap<String, ArrayList<String>> whereConditionRules = statement.getWhereConditionRules();
-		String operation = statement.getOperation();
-		Set<String> statementErrors = statement.getErrorMessages();
-
-		switch (operation) {
-
-		case "read":
-			response = this.executeOpRead(selectedNodeName, childrenNamesValues, parentNames, whereConditionRules);
-			break;
-
-		case "write":
-			response = this.executeOpWrite(selectedNodeName, selectedNodeValue, childrenNamesValues, parentNames,
-					whereConditionRules);
-			break;
-
-		case "enforce":
-			response = this.executeOpEnforce(selectedNodeName, selectedNodeValue, childrenNamesValues, parentNames,
-					whereConditionRules);
-
-			break;
-
-		case "delete":
-
-			response = "";
-			break;
-
-		case "rename":
-			response = "";
-			break;
-
-		case "exit":
-			response = this.executeOpExit();
-			break;
-
-		case "begin":
-			response = this.executeOpBegin();
-			break;
-
-		case "commit":
-			response = this.executeOpCommit();
-			break;
-
-		case "rollback":
-			response = this.executeOpRollback();
-			break;
-
-		case "error":
-			response = this.executeOpError(statementErrors);
-			break;
-
-		case "comment":
-			/* do nothing */
-			break;
-
-		default:
-			/* do nothing */
-		}
-
-		return response;
-	}
-
 	public boolean getWriteToDiskSignal() {
 		return this.writeToDiskSignal;
 	}
@@ -667,35 +563,6 @@ public class Interpreter {
 		this.memory.createDefaultRuleSet(ruleSetName);
 
 		return "Rules set for " + ruleSetName + ".";
-	}
-
-	private String executeOpExit() {
-		this.memory.setKillSignal(true);
-		return "Goodbye.";
-	}
-
-	private String executeOpBegin() {
-		return "This operation has not yet been implemented.";
-	}
-
-	private String executeOpCommit() {
-		return "This operation has not yet been implemented.";
-	}
-
-	private String executeOpRollback() {
-		return "This operation has not yet been implemented.";
-	}
-
-	/*
-	 * This is a special operation for when an input error is detected.
-	 */
-
-	private String executeOpError(Set<String> parseErrors) {
-
-		String errorMessagesString = "";
-		errorMessagesString = String.join("\n", parseErrors);
-
-		return errorMessagesString;
 	}
 
 	/**

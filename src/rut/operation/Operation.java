@@ -95,9 +95,15 @@ public abstract class Operation {
 			 */
 			fetchedNodesData = this.filterNodesDataWithoutChild(fetchedNodesData);
 		}
-
+		
 		for (String fullPath : fetchedNodesData.keySet()) {
-
+/*
+			if (fullPath.equals("Root")) {
+				fullPath = "";
+			}
+*/
+			System.out.println(fullPath);
+			
 			this.processedNodesCount += this.processNodeData(fullPath, fetchedNodesData.get(fullPath));
 
 		}
