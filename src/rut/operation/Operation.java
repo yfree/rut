@@ -34,7 +34,7 @@ public abstract class Operation {
 
 	protected Statement statement;
 	protected MemoryStorage memory;
-	
+
 	protected String dataFormat;
 	protected Integer processedNodesCount;
 	protected ArrayList<String> outputBufferRows;
@@ -42,7 +42,7 @@ public abstract class Operation {
 	public String childNameToProcess;
 	ConcurrentHashMap<String, Node> fetchedNodesData;
 
-	public Operation(Statement opStatement, MemoryStorage memoryStorage){
+	public Operation(Statement opStatement, MemoryStorage memoryStorage) {
 
 		this.statement = opStatement;
 		this.memory = memoryStorage;
@@ -50,10 +50,9 @@ public abstract class Operation {
 		this.outputBufferRows = new ArrayList<String>();
 		this.processedNodesCount = 0;
 		this.fetchedNodesData = new ConcurrentHashMap<String, Node>();
-	
-		
+
 	}
-	
+
 	/*
 	 * Redo this method in its entirety! The default execute() method performs
 	 * processNode() on every node fetched. Nodes are identified for fetching using
@@ -64,7 +63,7 @@ public abstract class Operation {
 	public String execute() {
 
 		this.childNameToProcess = this.statement.getSelectedNodeName();
-		
+
 		String selectedNodeValue = statement.getSelectedNodeValue();
 		LinkedHashMap<String, String> childrenNamesValues = statement.getChildrenNamesValues();
 		ArrayList<String> parentNames = statement.getParentNames();
@@ -72,17 +71,18 @@ public abstract class Operation {
 		LinkedHashMap<String, ArrayList<String>> whereConditionRules = statement.getWhereConditionRules();
 		boolean searchRules = parentNames.contains("rule");
 		ConcurrentHashMap<String, Node> nodesData = new ConcurrentHashMap<String, Node>();
-		
 
-		/*We need a parent node and a child name to do processing. 
-		 *We are now going to fetch the parent node */
-		
+		/*
+		 * We need a parent node and a child name to do processing. We are now going to
+		 * fetch the parent node
+		 */
+
 		if (this.statement.getNodeHierarchyString().equals("Root")) {
 
 			nodesData = this.memory.getDataByPath("Root", true);
-			
+
 		} else if (parentNames.isEmpty()) {
-	
+
 			nodesData = this.memory.getParentNodesDataByChildName(this.childNameToProcess, searchRules);
 
 		} else {
@@ -94,34 +94,37 @@ public abstract class Operation {
 			 */
 			nodesData = this.filterNodesDataWithoutChild(nodesData);
 		}
-		
-		
-		/* If nodesData has fetched values, we want to keep it. Otherwise, we want fetchedNodesData to contain a 
-		 * default value. */
+
+		/*
+		 * If nodesData has fetched values, we want to keep it. Otherwise, we want
+		 * fetchedNodesData to contain a default value.
+		 */
+
 		if (!nodesData.isEmpty()) {
-			this.fetchedNodesData = nodesData;	
+
+			this.fetchedNodesData = nodesData;
+
 		}
-		
-		
+
 		
 		for (String fullPath : this.fetchedNodesData.keySet()) {
 
 			this.processedNodesCount += this.processNodeData(fullPath, this.fetchedNodesData.get(fullPath));
 		}
- 
 		return this.generateResponse();
 	}
 
-	protected ConcurrentHashMap<String, Node> filterNodesDataWithoutChild(ConcurrentHashMap<String, Node> uncheckedNodesData) {
+	protected ConcurrentHashMap<String, Node> filterNodesDataWithoutChild(
+			ConcurrentHashMap<String, Node> uncheckedNodesData) {
 		/*
 		 * Parent Nodes checked to contain the child, if so, parent nodes are added to
 		 * result set
 		 */
 		ConcurrentHashMap<String, Node> resultNodesData = new ConcurrentHashMap<String, Node>();
 		Node childNode, parentNode;
-	
+
 		for (String fullPath : uncheckedNodesData.keySet()) {
-			
+
 			parentNode = uncheckedNodesData.get(fullPath);
 
 			childNode = parentNode.getChild(this.childNameToProcess);
@@ -139,27 +142,26 @@ public abstract class Operation {
 	protected String generateResponse() {
 
 		StringBuilder resultMessage = new StringBuilder();
-		
+
 		DataFormat dataFormat = DataFormatFactory.createDataFormat(this.dataFormat);
 
 		if (this.processedNodesCount > 0) {
-		
-			for (String line : dataFormat.getLines(this.outputBufferRows)){
-			
+
+			for (String line : dataFormat.getLines(this.outputBufferRows)) {
+
 				resultMessage.append(line + "\n");
-		
+
 			}
 		}
-		
+
 		if (this.processedNodesCount == 0) {
 			resultMessage.append("No nodes " + this.opVerbPastTense + ".");
 		} else if (this.processedNodesCount == 1) {
 			resultMessage.append("1 node " + this.opVerbPastTense + ".");
 		} else if (this.processedNodesCount > 1) {
-			resultMessage.append(this.processedNodesCount.toString() + " nodes " + 
-					this.opVerbPastTense + ".");
+			resultMessage.append(this.processedNodesCount.toString() + " nodes " + this.opVerbPastTense + ".");
 		}
-		
+
 		return resultMessage.toString();
 	}
 
@@ -167,9 +169,9 @@ public abstract class Operation {
 	 * processNode() is operation specific.
 	 * 
 	 * No two node-processing operations will process a node in the same way.
-	 * However not all operations are node-processing operations, therefore
-	 * defining a procesNode() is optional. For non-node-processing operations, 
-	 * you can redefine the execute method in its entirety.
+	 * However not all operations are node-processing operations, therefore defining
+	 * a procesNode() is optional. For non-node-processing operations, you can
+	 * redefine the execute method in its entirety.
 	 */
 	protected int processNodeData(String fullPath, Node fetchedNode) {
 		/* intentionally left blank */

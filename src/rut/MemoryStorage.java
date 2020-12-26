@@ -99,9 +99,9 @@ public class MemoryStorage {
 
 		return flatDataMap;
 	}
-
+	
 	/* Adds a node to the dataMap */
-	public void addDataMap(Node node, String fullPath) {
+	public boolean addDataMap(Node node, String fullPath) {
 
 		/* Normalize Data Map entry by removing the Root keyword */
 		fullPath = fullPath.replace("Root.", "");
@@ -140,11 +140,40 @@ public class MemoryStorage {
 		nodesByName.put(fullPath, node);
 
 		this.dataMap.put(nodeName, nodesByName);
+		return true;
 	}
 
-	/* Removes a node from the dataMap */
-	public void removeDataMap(Node node, String fullPath) {
-		//TODO Implement me
+	
+	/* Deletes a node from the dataMap */
+	public boolean deleteDataMap(String fullPath) {
+		
+		/* Normalize Data Map entry by removing the Root keyword */
+		fullPath = fullPath.replace("Root.", "");
+		
+		String nodeName = this.parseNodeName(fullPath);
+		
+		ConcurrentHashMap<String, Node> nodesByName = this.dataMap.get(nodeName);
+
+		if (nodesByName == null) {
+			
+			return false;
+		}
+		try {
+
+			nodesByName.remove(fullPath);
+
+		} catch (Exception e) {
+			
+		}
+		
+		if (nodesByName.isEmpty()) {
+		
+			this.dataMap.remove(nodeName);
+		
+		}
+		
+		return true;
+	
 	}
 	
 	/**
@@ -155,7 +184,7 @@ public class MemoryStorage {
 	 * @param fullPath - the full path of the node, separated by periods
 	 * @return the parsed name of the node
 	 */
-	private String parseNodeName(String fullPath) {
+	public String parseNodeName(String fullPath) {
 
 		String nodeName = "";
 		int lastDot = 0;
@@ -179,7 +208,7 @@ public class MemoryStorage {
 	 * @param fullPath - the full path of the node, separated by periods
 	 * @return the parsed name of the node
 	 */
-	private String parseParentName(String fullPath) {
+	public String parseParentName(String fullPath) {
 
 		/* Default entry is 'Root'. This will be normalized to the proper path 
 		 * without that word through the pipe line, but for now it's easiest this way.
