@@ -55,19 +55,12 @@ public class Delete extends Operation {
 			for (int i = recursiveReadLines.size() - 1; i >= 0; i--) {
 
 				rawLine = recursiveReadLines.get(i);
-
 				separatorToken = rawLine.indexOf(':');
-
 				pathFromChild = rawLine.substring(0, separatorToken);
-				
 				fullPathOfChild = finalPath.toString() + pathFromChild;
-				
 				parentName = this.memory.parseParentName(fullPathOfChild);
-				
 				parentNodeData = this.memory.getDataByPath(parentName, false);
-
 				parentNode = parentNodeData.get(parentName);
-		
 				dataToProcess.put(fullPathOfChild, parentNode);
 
 			}
@@ -85,9 +78,7 @@ public class Delete extends Operation {
 
 			parentNode = dataToProcess.get(fullChildPath);
 			theChildren = parentNode.getChildren();
-
 			childName = this.memory.parseNodeName(fullChildPath);
-
 			deletedNode = theChildren.remove(childName);
 
 			if (deletedNode != null) {

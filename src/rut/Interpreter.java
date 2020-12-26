@@ -101,15 +101,29 @@ public class Interpreter {
 
 	}
 
+	public String generateErrorResponse(Set<String> errorMessages) {
+	
+		String errorResponse = "";
+		if (errorMessages.size() > 0) {
+
+			errorResponse = String.join("\n", errorMessages);
+
+		}		
+		
+		return errorResponse;
+	}
+	
 	public String processStatement(Statement statement) {
 		
+		
+		/*
 		Set<String> errorMessages = statement.getErrorMessages();
 		if (errorMessages.size() > 0) {
 
 			return String.join("\n", errorMessages);
 
 		}
-		
+		*/
 		int iterations = statement.getIterations();
 		StringBuilder response = new StringBuilder();
 		String iterationResponse = "";
@@ -190,14 +204,19 @@ public class Interpreter {
 		String[] operationsToCheck = { "write", "enforce" };
 		ArrayList<String> operationsToCheckFor = new ArrayList<String>(Arrays.asList(operationsToCheck));
 
+		/* After checkForOpErrors runs, if operation errors are found they will 
+		 * be added to the error messages container. */
 		if (operationsToCheckFor.contains(statement.getOperation())) {
-			if (!this.checkForOpErrors(statement)) {
-				Set<String> errorMessages = statement.getErrorMessages();
-				if (errorMessages.size() > 0) {
-					return String.join("\n", errorMessages);
-				}	
-			}
+			
+			this.checkForOpErrors(statement);
+			
 		}
+		
+		Set<String> errorMessages = statement.getErrorMessages();
+		
+		if (errorMessages.size() > 0) {
+			return generateErrorResponse(errorMessages);
+		}	
 		
 		try {
 			Operation operation = OperationFactory.createOperation(statement, this.memory);
@@ -379,166 +398,6 @@ public class Interpreter {
 
 	}
 
-	/*
-	 * Can read by node name, can read multiple nodes with the same name. Can read
-	 * by node name and hierarchical parent names. Can read selected children names
-	 * - will read those fields only Can read WHERE CONDITIONS: multiple conditions
-	 * are treated as 'OR' will add support for 'AND' Todo: read joins
-	 */
-	/*
-	 * TODO: Thorough fixing of WHERE. I want this to filter and be able to do basic
-	 * things such as read employeeTitle where employeeTitle = ..., I know its
-	 * working right now like for 25% of cases, it needs revamping and to be made
-	 * production ready.
-	 */
-	private String executeOpRead(String selectedNodeName, LinkedHashMap<String, String> childrenNamesValues,
-			ArrayList<String> parentNames, LinkedHashMap<String, ArrayList<String>> whereConditionRules) {
-
-		ArrayList<String> parentNamesCopy = new ArrayList<String>(parentNames);
-		ArrayList<String> actualValues = new ArrayList<String>();
-		ArrayList<String> keyOnlyEntries = new ArrayList<String>();
-		boolean noResults = false;
-		ArrayList<String> resultMasterList;
-
-		boolean searchRules = parentNamesCopy.contains("rule") || selectedNodeName.equals("rule") ? true : false;
-
-		/* TODO: FIX ME - Do not display rules for 'read Root.Child' */
-		if (parentNamesCopy.contains("Root") && selectedNodeName.equals("Child")) {
-			searchRules = false;
-
-		}
-
-		/*
-		 * The traversing of the node tree takes place during the construction of the
-		 * result master lists. Each instance of a name being read is a separate list.
-		 * For instance, 'read employeeFirstName' will create multiple result lists to
-		 * be created, one result list for each 'employeeFirstName' and that node's
-		 * children. The lists are added together to form the superset variable
-		 * resultMasterLists. This is the final result that will be formatted (a bit
-		 * more) and then presented to the user.
-		 */
-		ArrayList<ArrayList<String>> resultMasterLists = this.generateResultLists(parentNamesCopy, selectedNodeName,
-				whereConditionRules, childrenNamesValues, searchRules);
-
-		if (resultMasterLists.size() < 1) {
-
-			/* There are obviously no results if nothing was returned... */
-			noResults = true;
-		} else {
-			for (String result : resultMasterLists.get(0)) {
-				result = result.trim();
-				if (result.endsWith("->")) {
-					keyOnlyEntries.add(result);
-				} else {
-					actualValues.add(result);
-				}
-			}
-
-			if (actualValues.size() < 1) {
-
-				/*
-				 * If only keys are presented but no values, this is a case of 'no results' and
-				 * we do not show the empty keys.
-				 */
-				noResults = true;
-			}
-		}
-
-		if (noResults) {
-
-			resultMasterList = new ArrayList<String>();
-			resultMasterList.add("No results found.\n");
-			if (resultMasterLists.size() == 0) {
-				resultMasterLists.add(new ArrayList<String>());
-			}
-
-			resultMasterLists.set(0, resultMasterList);
-		}
-
-		/*
-		 * Return the final result presentation. Basic, XML, JSON, or RutDisplay are
-		 * valid data formats for presentation
-		 */
-
-		return this.createResultDisplay(resultMasterLists, "Basic");
-	}
-
-	/*
-	 * Write to a node, create a new node, or create a new node and write to it.
-	 */
-	private String executeOpWrite(String selectedNodeName, String selectedNodeValue,
-			LinkedHashMap<String, String> childrenNamesValues, ArrayList<String> parentNames,
-			LinkedHashMap<String, ArrayList<String>> whereConditionRules) {
-
-		boolean searchRules = parentNames.contains("rule");
-		int nodesToWriteCount = 0;
-
-		ArrayList<String> childNodeNames;
-
-		Node nodeParentToWriteTo;
-
-		ConcurrentHashMap<String, Node> parentsToWriteToData = this.getParentDataToWriteTo(parentNames,
-				selectedNodeName, searchRules);
-		/*
-		 * debugCounter++; if (debugCounter % 1000 == 0) {
-		 * System.out.println("1000 getParentNodesToWriteTo Completed"); }
-		 */
-
-		/*
-		 * Process new nodes by appending a child to the parents and writing the value
-		 * to them
-		 */
-		for (String fullPath : parentsToWriteToData.keySet()) {
-
-			nodeParentToWriteTo = parentsToWriteToData.get(fullPath);
-
-			childNodeNames = new ArrayList<String>();
-
-			/* Where Conditions evaluated */
-			if (!whereConditionRules.isEmpty()) {
-				if (!nodeParentToWriteTo.whereConditionSatisfied(whereConditionRules, nodeParentToWriteTo)) {
-					continue;
-				}
-			}
-
-			if (selectedNodeName.equals("Child")) {
-				ArrayList<String> parentNamesCopy = new ArrayList<String>(parentNames);
-				parentNamesCopy.add("Child");
-				childNodeNames = memory.resolveChildKeyWord(parentNamesCopy, searchRules);
-			} else {
-				childNodeNames.add(selectedNodeName);
-			}
-
-			for (String childNodeName : childNodeNames) {
-				Node writtenNode;
-
-				/* Check if the node exists */
-				writtenNode = nodeParentToWriteTo.getChild(childNodeName);
-				if (writtenNode != null) {
-					writtenNode.setValue(selectedNodeValue);					
-				}
-				else {
-				
-					writtenNode = new Node(selectedNodeValue);
-					this.memory.addDataMap(writtenNode, fullPath + "." + childNodeName);
-					
-				}
-
-
-				nodesToWriteCount++;
-			//	nodesToWriteCount += this.generateChildrenNodes(writtenNode, childrenNamesValues);
-			}
-		}
-
-		/* Signal to save to disk because changes have been made. */
-		if ((nodesToWriteCount) > 0) {
-
-			this.writeToDiskSignal = true;
-
-		}
-
-		return this.generateResultMessage("written to", nodesToWriteCount);
-	}
 	/**
 	 * If a write operation is performed where a rule is being written, it will be
 	 * handled by this method. Prerequisite: Syntax level checking has been
@@ -557,7 +416,7 @@ public class Interpreter {
 		/* This is the node name that the rules will be children of */
 		String ruleSetName = this.resolveRuleSetName(selectedNodeName, parentNames);
 
-		this.executeOpWrite(selectedNodeName, selectedNodeValue, childrenNamesValues, parentNames, whereConditionRules);
+		//this.executeOpWrite(selectedNodeName, selectedNodeValue, childrenNamesValues, parentNames, whereConditionRules);
 
 		/* This skips rules if they already exist */
 		this.memory.createDefaultRuleSet(ruleSetName);
@@ -565,188 +424,13 @@ public class Interpreter {
 		return "Rules set for " + ruleSetName + ".";
 	}
 
-	/**
-	 * This is a helper method for executeOpRead's generateResultLists. This method
-	 * constructs an individual list of node names / values based on the name
-	 * provided as input. This method creates a single list, so for instance if the
-	 * name was 'employeeFirstName' and there were ten employee first name's to be
-	 * displayed, ten lists will need to be created. The responsibility for creating
-	 * multiple lists and appending them together is the for the method
-	 * generateResultLists.
-	 * 
-	 * @param parentNames
-	 * @param selectedNodeName
-	 * @param childSubstituteNames
-	 * @param selectedNodeNameSwitch
-	 * @param resultNodes
-	 * @param resultNode
-	 * @param whereConditionRules
-	 * @param childrenNamesValues
-	 * @param searchRules
-	 * @return
-	 */
-	private ArrayList<String> generateResultList(ArrayList<String> parentNames, String selectedNodeName,
-			ArrayList<String> childSubstituteNames, boolean selectedNodeNameSwitch, ArrayList<Node> resultNodes,
-			Node resultNode, LinkedHashMap<String, ArrayList<String>> whereConditionRules,
-			LinkedHashMap<String, String> childrenNamesValues, boolean searchRules, int childCounter) {
-		ArrayList<String> resultList = new ArrayList<String>();
-
-		ArrayList<String> resultStrings;
-		int depth = 0;
-		int lastElementIndex = parentNames.size();
-		int currentIndex = 1;
-
-		for (String parentName : parentNames) {
-
-			if (parentName.equals("Child")) {
-
-				parentName = childSubstituteNames.get(childCounter);
-
-			}
-
-			if (currentIndex == lastElementIndex) {
-
-				break;
-			}
-
-			if (resultNodes.size() > 0) {
-
-				resultList.add(resultNodes.get(0).indent(depth) + parentName + "-> \n");
-			}
-			depth++;
-
-			// Skip the last element, that will be processes separately.
-			currentIndex++;
-
-		}
-
-		resultStrings = new ArrayList<String>();
-
-		if (selectedNodeName.equals("Child")) {
-
-			/*
-			 * Once this switch is set, it will not be unset. selectedNodeName will traverse
-			 * the list of child substitute names and use each one of them instead of
-			 * 'child'.
-			 */
-			selectedNodeNameSwitch = true;
-
-		}
-		if (selectedNodeNameSwitch) {
-
-			selectedNodeName = childSubstituteNames.get(childCounter);
-
-		}
-
-		resultList.add(resultNodes.get(0).indent(depth) + selectedNodeName + "-> ");
-
-		resultStrings = resultNode.traverse(childrenNamesValues, whereConditionRules, resultStrings, 1, searchRules);
-
-		/* Special formatting to conform for items with parent nodes specified. */
-		if (resultStrings.size() > 0) {
-
-			for (String resultItem : resultStrings) {
-
-				resultList.add(resultItem.replaceAll("\n", "\n" + resultNodes.get(0).indent(depth)));
-
-			}
-
-		}
-		String lastResultForEntry = "";
-		int lastResultForEntryIndex = 0;
-		if (resultList.size() > 0) {
-
-			lastResultForEntryIndex = resultList.size() - 1;
-			lastResultForEntry = resultList.get(lastResultForEntryIndex);
-
-			/*
-			 * Formatting fix for multiple results with parent names and children...
-			 * basically on the last line, there is indentation after the line break that
-			 * must be removed...
-			 */
-			if (lastResultForEntry.contains("\n")) {
-				lastResultForEntry = lastResultForEntry.split("\\\\r?\\n")[0];
-
-				resultList.set(lastResultForEntryIndex, lastResultForEntry + "\n");
-
-			}
-		}
-
-		return resultList;
-
-	}
 
 	/*
 	 * This is a helper method for executeOpRead that produces unformatted lists of
 	 * node names/values (i.e. results) read from the database. These lists will
 	 * later be combined for the final output.
 	 */
-	private ArrayList<ArrayList<String>> generateResultLists(ArrayList<String> parentNames, String selectedNodeName,
-			LinkedHashMap<String, ArrayList<String>> whereConditionRules,
-			LinkedHashMap<String, String> childrenNamesValues, boolean searchRules) {
-		ArrayList<ArrayList<String>> resultMasterLists = new ArrayList<ArrayList<String>>();
-
-		/* When child keyword is used, this list contains the real names for display. */
-		ArrayList<String> childSubstituteNames = new ArrayList<String>();
-		ArrayList<Node> resultNodes = new ArrayList<Node>();
-
-		/* If no parent nodes are specified, the Result Nodes List will be simple */
-		if (parentNames.isEmpty()) {
-			/* WORKS */
-			resultNodes = this.memory.getNodesByName(selectedNodeName, searchRules);
-
-		} else {
-
-			/*
-			 * If parent nodes ARE specified, some modifications need to be done before our
-			 * Result Nodes List is ready for processing.
-			 */
-
-			String fullPath = this.memory.parseFullPath(parentNames, selectedNodeName);
-			resultNodes = this.memory.justNodes(this.memory.getDataByPath(fullPath, searchRules));
-
-			//System.out.println(resultNodes);
-
-			// resultNodes = memory.getNodesByNamePathContains(selectedNodeName, parents,
-			// searchRules);
-
-			/* Put the selected node name back in the list for sequential processing */
-			parentNames.add(selectedNodeName);
-
-		}
-
-		if (resultNodes.size() > 0 && parentNames.contains("Child")) {
-
-			childSubstituteNames = memory.resolveChildKeyWord(parentNames, searchRules);
-
-		}
-
-		/*
-		 * The Result Nodes List is ready for processing.
-		 * 
-		 * This list will be traversed and the results will be compiled for display.
-		 */
-
-		/*
-		 * This is used to tell the selectedNodeName to use the real name when a name
-		 * has been set to the 'Child' keyword.
-		 */
-		boolean selectedNodeNameSwitch = false;
-
-		int childCounter = 0;
-
-		for (Node resultNode : resultNodes) {
-
-			ArrayList<String> resultList = this.generateResultList(parentNames, selectedNodeName, childSubstituteNames,
-					selectedNodeNameSwitch, resultNodes, resultNode, whereConditionRules, childrenNamesValues,
-					searchRules, childCounter++);
-
-			resultMasterLists.add(resultList);
-		}
-
-		return resultMasterLists;
-	}
-
+	
 	/**
 	 * This operation writes child nodes of a selected node and optionally populates
 	 * them with values.
@@ -781,60 +465,6 @@ public class Interpreter {
 		}
 
 		return childrenNamesValues.keySet().size();
-	}
-
-	/**
-	 * Gets node data for a parent nodes to be written to
-	 * 
-	 * @param parentNames      - the parent names of the selected node name
-	 * @param selectedNodeName - the selected node name, whose parents are being
-	 *                         searched for
-	 * @param searchRules      - specifies whether or not to search through rules
-	 * @return - ConcurrentHashMap<String of the full path, Node>
-	 */
-	private ConcurrentHashMap<String, Node> getParentDataToWriteTo(ArrayList<String> parentNames,
-			String selectedNodeName, boolean searchRules) {
-/*
-		String searchString = selectedNodeName;
-		String parentString = String.join(".", parentNames);
-
-		if (parentNames.size() > 0) {
-			searchString = parentString + "." + searchString;
-		}
-*/
-		String searchString;
-		
-		/*If no parent names are in the search path, just the selected node name*/
-		if (parentNames.size() == 0) {
-	
-			searchString = selectedNodeName;
-
-		}
-		else {
-			
-			searchString = String.join(".", parentNames);
-			
-		}
-		ConcurrentHashMap<String, Node> parentsToWriteToData = memory.getDataByPath(searchString, searchRules);
-
-		return parentsToWriteToData;
-	}
-
-	/*
-	 * Generates the result message for all the non-read operations. The parameters
-	 * are the verb to be used in the message and the number of nodes affected by
-	 * the operation.
-	 */
-	private String generateResultMessage(String verb, int nodeCount) {
-		String resultMessage = "";
-		if (nodeCount == 0) {
-			resultMessage = "No nodes " + verb + ".";
-		} else if (nodeCount == 1) {
-			resultMessage = "1 node " + verb + ".";
-		} else if (nodeCount > 1) {
-			resultMessage = nodeCount + " nodes " + verb + ".";
-		}
-		return resultMessage;
 	}
 
 	/**
@@ -1443,53 +1073,6 @@ public class Interpreter {
 		}
 
 		return ruleSetName;
-	}
-
-	private String createResultDisplay(ArrayList<ArrayList<String>> resultMasterLists, String dataFormat) {
-
-		StringBuilder resultString = new StringBuilder();
-
-		if (!Definitions.dataFormats.contains(dataFormat)) {
-
-			/* Nothing to return */
-			return resultString.toString();
-
-		}
-
-		for (ArrayList<String> resultList : resultMasterLists) {
-
-			resultString.append(String.join("", resultList));
-
-		}
-
-		/*
-		 * The size of the separator is the size of the longest row of result text
-		 * (limited by 64 characters) ...
-		 */
-
-		int separatorSize = this.getSeparatorSize(resultString.toString());
-
-		return resultString.toString();
-
-	}
-
-	private int getSeparatorSize(String resultMasterListString) {
-
-		int resultSize = 0;
-		int largestSize = 0;
-
-		for (String result : resultMasterListString.split("\\n")) {
-
-			resultSize = result.length();
-
-			if (resultSize > largestSize) {
-
-				largestSize = resultSize;
-
-			}
-		}
-
-		return largestSize;
 	}
 
 }
