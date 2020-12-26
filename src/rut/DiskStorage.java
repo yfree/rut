@@ -82,11 +82,6 @@ public class DiskStorage {
 		dataMap.put("Root", rootRecord);
 		MemoryStorage memory = new MemoryStorage(dataMap);	
 		
-		/*
-		Node rootNode = memory.justNodes(memory.getDataByPath("Root", false)).get(0);
-		System.out.println(rootNode.getValue());
-		System.out.println("Done!");
-		*/
 try {
 			File file = new File(this.storageFileName);
 

@@ -1,6 +1,7 @@
 package rut.operation;
 
 import java.util.ArrayList;
+import java.util.Collections;
 
 import rut.MemoryStorage;
 import rut.Node;
@@ -13,19 +14,18 @@ public class Read extends Operation {
 	public Read(Statement opStatement, MemoryStorage memory) {
 		super(opStatement, memory);
 		this.opVerbPastTense = "read";
-		this.fetchedNodesData = this.memory.getDataByPath("Root", true);
 		
 	}
 	
 	protected int processNodeData(String fullPath, Node fetchedNode) {
-	
+			
 		ArrayList<String> rawResultLines = fetchedNode.generateTree(this.childNameToProcess);
 		int nodeCount = rawResultLines.size();		
 		
 		this.outputBufferRows.addAll(rawResultLines);
-			
+	  
 		return nodeCount;
-	
+
 	}
 	
 }
