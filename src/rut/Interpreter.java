@@ -195,11 +195,8 @@ public class Interpreter {
 		 */
 		this.processKeywords(statement);
 		/*
-		 * The second and final level of error checking is performed. This type of error
-		 * checking is called interpreter error checking, error checking that requires
-		 * access to the data and cannot be done by the statement parser based on the
-		 * statement syntax alone. This error checking is only done if the operation is
-		 * currently one of the operations that checkForOpErrors tests for.
+		 Two types of error checks are performed. Statement parsing errors and then operation specific interpreter
+		 errors that require access to the data in order to check for errors.
 		 */
 		String[] operationsToCheck = { "write", "enforce" };
 		ArrayList<String> operationsToCheckFor = new ArrayList<String>(Arrays.asList(operationsToCheck));

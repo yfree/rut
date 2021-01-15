@@ -1,7 +1,6 @@
 package rut.operation;
 
 import java.util.ArrayList;
-import java.util.Collections;
 
 import rut.MemoryStorage;
 import rut.Node;
