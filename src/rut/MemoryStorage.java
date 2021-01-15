@@ -49,6 +49,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 public class MemoryStorage {
 
@@ -57,20 +58,20 @@ public class MemoryStorage {
 	private ConcurrentHashMap<String, ConcurrentHashMap<String, Node>> dataMap;
 
 	private boolean killSignal;
-	
+
 	private boolean writeToDiskSignal;
 
 	/* Keeps track of a universal auto incrementing long. */
 	private long uid;
 
-	public MemoryStorage(ConcurrentHashMap<String, ConcurrentHashMap<String, Node>> theDataMap) {		
+	public MemoryStorage(ConcurrentHashMap<String, ConcurrentHashMap<String, Node>> theDataMap) {
 
 		this.dataMap = theDataMap;
 		this.rootNode = this.dataMap.get("Root").get("Root");
-		
+
 		this.killSignal = false;
 		this.writeToDiskSignal = false;
-		
+
 		this.uid = 0;
 	}
 
@@ -99,13 +100,13 @@ public class MemoryStorage {
 
 		return flatDataMap;
 	}
-	
+
 	/* Adds a node to the dataMap */
 	public boolean addDataMap(Node node, String fullPath) {
 
 		/* Normalize Data Map entry by removing the Root keyword */
 		fullPath = fullPath.replace("Root.", "");
-		
+
 		String nodeName = this.parseNodeName(fullPath);
 		String parentName = this.parseParentName(fullPath);
 		
@@ -143,19 +144,77 @@ public class MemoryStorage {
 		return true;
 	}
 
-	
-	/* Deletes a node from the dataMap */
-	public boolean deleteDataMap(String fullPath) {
+	/* Renames the path of a node in a dataMap */
+	/**
+	 * 
+	 * @param fullPath      - absolute full path to the child to rename
+	 * @param oldParentName the node name that is to be renamed (within the path of
+	 *                      fullPath - it does not have to be the child node)
+	 * @param newParentName the new node name to replace the old
+	 * @return
+	 */
+	public boolean renameParentDataMap(String fullPath, String oldParentName, String newParentName) {
+
+		String newNodePath = "";
+		String nodeName = "";
+		
+		/* Normalize Data Map entry by removing the Root keyword */
+		fullPath = fullPath.replace("Root.", "");
+
+		nodeName = this.parseNodeName(fullPath);
+		Node currentNode = new Node();
+		ConcurrentHashMap<String, Node> nodesByName = new ConcurrentHashMap<String, Node>(); 
+		nodesByName = this.dataMap.get(nodeName);
+
+		if (nodesByName == null) {
+
+			return false;
+		}
+
+		currentNode = nodesByName.remove(fullPath);
+		
+		newNodePath = fullPath.replace("." + oldParentName + ".", 
+				                       "." + newParentName + ".");
+		
+
+		if (fullPath.startsWith(oldParentName + ".")) {
+			
+			newNodePath = newNodePath.replaceFirst(oldParentName + ".", newParentName + ".");
+		
+		} else if (fullPath.endsWith("." + oldParentName)){
+		
+			newNodePath = newNodePath.replace("." + oldParentName, "." + newParentName);
+		
+		}else if (fullPath.equals(oldParentName)) {
+		
+			newNodePath = newNodePath.replace(oldParentName, newParentName);
+		
+		}
 		
 		/* Normalize Data Map entry by removing the Root keyword */
 		fullPath = fullPath.replace("Root.", "");
 		
-		String nodeName = this.parseNodeName(fullPath);
+		nodeName = this.parseNodeName(newNodePath);
 		
+		nodesByName.put(newNodePath, currentNode);
+		this.dataMap.put(nodeName, nodesByName);
+		
+		return true;
+
+	}
+
+	/* Deletes a node from the dataMap */
+	public boolean deleteDataMap(String fullPath) {
+
+		/* Normalize Data Map entry by removing the Root keyword */
+		fullPath = fullPath.replace("Root.", "");
+
+		String nodeName = this.parseNodeName(fullPath);
+
 		ConcurrentHashMap<String, Node> nodesByName = this.dataMap.get(nodeName);
 
-		if (nodesByName == null) {
-			
+		if (nodesByName.isEmpty()) {
+
 			return false;
 		}
 		try {
@@ -163,19 +222,19 @@ public class MemoryStorage {
 			nodesByName.remove(fullPath);
 
 		} catch (Exception e) {
-			
+
 		}
-		
+
 		if (nodesByName.isEmpty()) {
-		
+
 			this.dataMap.remove(nodeName);
-		
+
 		}
-		
+
 		return true;
-	
+
 	}
-	
+
 	/**
 	 * Accepts a string of the full path for a node and parses the node's name (the
 	 * last item in the full path). For instance, if a.b.c.d is provided as input, d
@@ -210,10 +269,11 @@ public class MemoryStorage {
 	 */
 	public String parseParentName(String fullPath) {
 
-		/* Default entry is 'Root'. This will be normalized to the proper path 
-		 * without that word through the pipe line, but for now it's easiest this way.
+		/*
+		 * Default entry is 'Root'. This will be normalized to the proper path without
+		 * that word through the pipe line, but for now it's easiest this way.
 		 */
-		
+
 		String parentName = "Root";
 
 		int lastDot = 0;
@@ -271,16 +331,16 @@ public class MemoryStorage {
 			if (fullPath.equals("Root")) {
 				continue;
 			}
-			
+
 			currentNode = flatDataMap.get(fullPath);
 			lines.add(fullPath + ":" + currentNode.getValue());
-			
+
 		}
 
 		Collections.sort(lines);
 		Collections.reverse(lines);
 		return String.join("\n", lines);
-		
+
 	}
 
 	public String printDataMap() {
@@ -337,7 +397,7 @@ public class MemoryStorage {
 	public void setUid(long uid) {
 		this.uid = uid;
 	}
-	
+
 	public boolean getKillSignal() {
 		return this.killSignal;
 	}
@@ -353,7 +413,7 @@ public class MemoryStorage {
 	public void setWriteToDiskSignal(boolean writeToDiskSignal) {
 		this.writeToDiskSignal = writeToDiskSignal;
 	}
-	
+
 	public ConcurrentHashMap<String, ConcurrentHashMap<String, Node>> getDataMap() {
 		return this.dataMap;
 	}
@@ -374,18 +434,18 @@ public class MemoryStorage {
 	 */
 	public ConcurrentHashMap<String, Node> getDataByPath(String path, boolean searchRules) {
 		path = path.replace("Root.", "");
-		
+
 		ConcurrentHashMap<String, Node> dataResults = new ConcurrentHashMap<String, Node>();
 		String nodeName = this.parseNodeName(path);
 		ConcurrentHashMap<String, Node> nodeRecords = this.dataMap.get(nodeName);
-		
+
 		if (nodeRecords == null) {
 			return dataResults;
-			
+
 		}
-		
+
 		for (String fullPath : nodeRecords.keySet()) {
-	
+
 			if (!fullPath.contains("." + path) && !(fullPath.startsWith(path))) {
 				continue;
 			} else {
@@ -451,20 +511,23 @@ public class MemoryStorage {
 	 */
 	public ConcurrentHashMap<String, Node> getParentNodesDataByChildName(String nodeName, boolean searchRules) {
 		ConcurrentHashMap<String, Node> resultNodesData = new ConcurrentHashMap<String, Node>();
-		
-		ConcurrentHashMap<String, Node> childNodesData = getDataByPath(nodeName, searchRules);
-		String parentName = "";
+
+		ConcurrentHashMap<String, Node> childNodesData = this.getDataByPath(nodeName, searchRules);
 		ConcurrentHashMap<String, Node> parentNodesData;
-		
+		String parentName = "";
+//getDataByPath cannot find it the variable...
+
 		for (String fullPath : childNodesData.keySet()) {
-			
-			parentName = this.parseParentName(fullPath);	
-			parentNodesData = this.getDataByPath(parentName, searchRules);	
+
+			parentName = this.parseParentName(fullPath);
+
+			// System.out.println("Parent name is " + parentName);
+			parentNodesData = this.getDataByPath(parentName, searchRules);
 
 			resultNodesData.putAll(parentNodesData);
-			
+
 		}
-		
+
 		return resultNodesData;
 	}
 
@@ -521,7 +584,6 @@ public class MemoryStorage {
 
 		Node currentNode;
 		ArrayList<Node> resultNodes = new ArrayList<Node>();
-				
 
 		if (!this.dataMap.containsKey(nodeName)) {
 
@@ -662,10 +724,10 @@ public class MemoryStorage {
 	}
 
 	/**
-	 * Gets the first node result of getParentNodesByHierarchy but allows you to specify
-	 * whether or not to include rule nodes in the search results.
+	 * Gets the first node result of getParentNodesByHierarchy but allows you to
+	 * specify whether or not to include rule nodes in the search results.
 	 * 
-	 * @param String fullPath - the full path of the node
+	 * @param String      fullPath - the full path of the node
 	 * @param searchRules search the rule nodes, true or false
 	 * @return
 	 */
@@ -783,20 +845,21 @@ public class MemoryStorage {
 
 	/**
 	 * 
-	 * @param nodePath   the hierarchy of nodes to search
+	 * @param nodePath    the hierarchy of nodes to search
 	 * @param searchRules true or false, include rules in search results
-	 * @return the PARENT of the second to last node in the hierarchy if it contains the child (the last node)
-	 * for instance, if I search for x.y.z, if 'z' is a child of 'y', it will return y.
-	 * This may sound strange, why aren't we just getting node z? 
-	 * Remember, when node operations are performed, it is performed on the PARENT
-	 * node, because the parent node contains a HashMap linking its children. 
-	 * We ALWAYS need a parent node and a child name to do a node lookup
+	 * @return the PARENT of the second to last node in the hierarchy if it contains
+	 *         the child (the last node) for instance, if I search for x.y.z, if 'z'
+	 *         is a child of 'y', it will return y. This may sound strange, why
+	 *         aren't we just getting node z? Remember, when node operations are
+	 *         performed, it is performed on the PARENT node, because the parent
+	 *         node contains a HashMap linking its children. We ALWAYS need a parent
+	 *         node and a child name to do a node lookup
 	 */
 	public ConcurrentHashMap<String, Node> getParentNodesDataByHierarchy(String nodePath, boolean searchRules) {
-		
+
 		String parentPath = this.parseParentName(nodePath);
 
-		return this.getDataByPath(parentPath, searchRules);	
+		return this.getDataByPath(parentPath, searchRules);
 	}
 
 	/**
@@ -840,7 +903,6 @@ public class MemoryStorage {
 		/* Child Id not being resolved causes the method to return an empty list. */
 		return new ArrayList<String>();
 	}
-
 
 	/*
 	 * Deletes a node (via the parent). Returns the number of nodes deleted by the
@@ -995,8 +1057,8 @@ public class MemoryStorage {
 	}
 
 	/**
-	 * This is a helper method for getParentNodesByHierarchy. The method retrieves the
-	 * nodes that come from a parent - child structure encountering the 'child'
+	 * This is a helper method for getParentNodesByHierarchy. The method retrieves
+	 * the nodes that come from a parent - child structure encountering the 'child'
 	 * keyword. Once child keyword is resolved to the node children names, the nodes
 	 * are traversed.
 	 * 
