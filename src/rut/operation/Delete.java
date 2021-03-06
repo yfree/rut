@@ -1,8 +1,8 @@
 package rut.operation;
 
 
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.concurrent.ConcurrentHashMap;
 
 import rut.MemoryStorage;
 import rut.Node;
@@ -20,8 +20,9 @@ public class Delete extends Operation {
 		Node parentNode = new Node();
 		int nodesDeleted = 0;
 		String childName = "";
-		LinkedHashMap<String, Node> theChildren = new LinkedHashMap<String, Node>();
+		ConcurrentHashMap<String, Node> theChildren = new ConcurrentHashMap<String, Node>();
 		LinkedHashSet<String> dataToProcessOrder = this.generateDescendantDataToProcess(fullPath, fetchedNode);
+		String resultLine = "";
 		
 		/* A parent Node matches each child path in the DataToProcess container */
 		for (String fullChildPath : dataToProcessOrder) {
@@ -38,6 +39,8 @@ public class Delete extends Operation {
 				parentNode.setChildren(theChildren);
 				this.memory.deleteDataMap(fullChildPath);
 
+				resultLine = fullChildPath + " deleted.";
+				this.outputBufferRows.add(resultLine);
 			}
 
 		}

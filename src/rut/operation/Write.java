@@ -11,12 +11,16 @@ public class Write extends Operation {
 	public Write(Statement opStatement, MemoryStorage memory) {
 		super(opStatement, memory);
 		this.opVerbPastTense = "written";
-		this.fetchedNodesData = this.memory.getDataByPath("Root", true);
+		
+		this.fetchedNodesData = this.memory.getRootData();
 		
 	}
 	
 	protected int processNodeData(String fullPath, Node fetchedNode) {
 
+		boolean newNode = false;
+		boolean setValue = this.statement.getSelectedNodeValue().length() > 0 ? true : false;
+		
 		StringBuilder finalPath = new StringBuilder();
 		finalPath.append(fullPath);
 		
@@ -25,23 +29,51 @@ public class Write extends Operation {
 			finalPath.append(".");
 			
 		}
+
+		String resultLine = "";
+		String fullNodeName = finalPath.toString() + this.childNameToProcess;
 		
+		/*
+		 * value
+		 * child name to process
+		 * fetched node
+		 * */
 		Node currentNode = fetchedNode.getChild(this.childNameToProcess);
 		if (currentNode == null) {
 		
 			fetchedNode.addNodeChild(this.childNameToProcess, this.statement.getSelectedNodeValue());
 			currentNode = fetchedNode.getChild(this.childNameToProcess);
 			
-			this.memory.addDataMap(currentNode, finalPath.toString() + this.childNameToProcess);
+			
+			this.memory.addDataMap(currentNode, fullNodeName);
+			newNode = true;
 		
 		}
 		else {
 			
-			currentNode.setValue(this.statement.getSelectedNodeValue());
+			/* We only overwrite the existing value if a new value is set. Otherwise the node is not touched. */
+			if (setValue) {
+			
+				currentNode.setValue(this.statement.getSelectedNodeValue());
+			}
 		}
+		/**/
 		
 		this.memory.setWriteToDiskSignal(true);
 
+		if (newNode && setValue) {
+			resultLine = "New node " + fullNodeName + " created, value set to '" + this.statement.getSelectedNodeValue() + "'.";
+		}
+		else if (newNode && !setValue) {
+			resultLine = "New node " + fullNodeName + " created.";			
+		}
+		else if (!newNode && setValue) {
+			resultLine = fullNodeName + " value set to '" + this.statement.getSelectedNodeValue() + "'.";
+		}
+		else {
+			resultLine = fullNodeName + " was not modified.";
+		}
+		this.outputBufferRows.add(resultLine);
 		return 1;
 	}
 	

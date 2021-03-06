@@ -9,7 +9,9 @@ JSON support is implemented in this class
 /*TODO: Implement */
 public class JSON extends DataFormat{
 
-	public JSON() {
+	public JSON(String operation) {
+		
+		super(operation);
 		
 	}
 	

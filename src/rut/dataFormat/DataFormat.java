@@ -11,8 +11,14 @@ import java.util.ArrayList;
 
 public class DataFormat {
 
-	public DataFormat() {
+	/**
+	 * The name of the operation causing the response that the data format is for
+	 */
+	protected String operation;
+	
+	public DataFormat(String operation) {
 		
+		this.operation = operation;
 	}
 	
 	public ArrayList<String> getLines(ArrayList<String> rawLines){

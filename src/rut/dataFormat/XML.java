@@ -8,7 +8,9 @@ XML support is implemented in this class
 /*TODO: Implement */
 public class XML extends DataFormat{
 
-	public XML() {
+	public XML(String operation) {
+		
+		super(operation);
 		
 	}
 	

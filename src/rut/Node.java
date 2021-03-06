@@ -20,8 +20,8 @@ package rut;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Node {
 
@@ -39,24 +39,24 @@ public class Node {
 	private String value;
 
 	/* This is a map of the names and references to this node's children nodes */
-	private LinkedHashMap<String, Node> children;
+	private ConcurrentHashMap<String, Node> children;
 
 	public Node() {
-		this.setChildren(new LinkedHashMap<String, Node>());
+		this.setChildren(new ConcurrentHashMap<String, Node>());
 		this.setValue("");
 	}
 
-	public Node(LinkedHashMap<String, Node> children) {
+	public Node(ConcurrentHashMap<String, Node> children) {
 		this.setChildren(children);
 		this.setValue("");
 	}
 
 	public Node(String value) {
-		this.setChildren(new LinkedHashMap<String, Node>());
+		this.setChildren(new ConcurrentHashMap<String, Node>());
 		this.setValue(value);
 	}
 
-	public Node(String value, LinkedHashMap<String, Node> children) {
+	public Node(String value, ConcurrentHashMap<String, Node> children) {
 		this.setValue(value);
 		this.setChildren(children);
 	}
@@ -94,23 +94,22 @@ public class Node {
 		return this.children.size();
 	}
 
-	public LinkedHashMap<String, Node> getChildren() {
+	public ConcurrentHashMap<String, Node> getChildren() {
 		return this.children;
 	}
 
-	public void setChildren(LinkedHashMap<String, Node> children) {
+	public void setChildren(ConcurrentHashMap<String, Node> children) {
 		this.children = children;
 	}
 
-	
 	/*
 	 * removes a node child by name
 	 */
 	public void removeNodeChild(String nodeName) {
-	
-	//TODO: Implement me!
+
+		// TODO: Implement me!
 	}
-	
+
 	/*
 	 * Adds a node child with a name and a value
 	 */
@@ -124,7 +123,7 @@ public class Node {
 
 		this.setChild(nodeName, newNode);
 	}
-	
+
 	/*
 	 * Adds a node child with a name and and NO value
 	 */
@@ -132,7 +131,7 @@ public class Node {
 
 		this.addNodeChild(nodeName, "");
 	}
-	
+
 	public boolean getLocked() {
 		return this.locked;
 	}
@@ -156,15 +155,15 @@ public class Node {
 	 * that are used to search through the nodes do not keep track of the nodes they
 	 * pass through, and do not belong to Node but rather to Memory Storage.
 	 * 
-	 * @param childrenNamesValues
+	 * @param descendantNamesValues
 	 * @param whereConditionRules
 	 * @param result
 	 * @param traverseDepth
 	 * @return
 	 */
-	public ArrayList<String> traverse(LinkedHashMap<String, String> childrenNamesValues,
-			LinkedHashMap<String, ArrayList<String>> whereConditionRules, ArrayList<String> result, int traverseDepth,
-			boolean searchRules) {
+	public ArrayList<String> traverse(ConcurrentHashMap<String, String> descendantNamesValues,
+			ConcurrentHashMap<String, ArrayList<String>> whereConditionRules, ArrayList<String> result,
+			int traverseDepth, boolean searchRules) {
 
 		Node currentNode = this;
 		Node nextNode;
@@ -216,9 +215,9 @@ public class Node {
 			 * not contain those names are not displayed
 			 */
 
-			if (!childrenNamesValues.isEmpty()) {
-				if (this.setsIntersect(currentNode.getChildren().keySet(), childrenNamesValues.keySet())
-						&& !childrenNamesValues.keySet().contains(key)) {
+			if (!descendantNamesValues.isEmpty()) {
+				if (this.setsIntersect(currentNode.getChildren().keySet(), descendantNamesValues.keySet())
+						&& !descendantNamesValues.keySet().contains(key)) {
 
 					continue;
 				}
@@ -228,7 +227,7 @@ public class Node {
 
 			result.add(this.indent(traverseDepth) + key + "-> ");
 
-			result = nextNode.traverse(childrenNamesValues, whereConditionRules, result, traverseDepth + 1,
+			result = nextNode.traverse(descendantNamesValues, whereConditionRules, result, traverseDepth + 1,
 					searchRules);
 
 		}
@@ -248,13 +247,40 @@ public class Node {
 		return spaceString.toString();
 	}
 
+	public ArrayList<String> generateTree(String childName) {
+
+		HashSet<String> whiteListedPaths = new HashSet<String>();
+
+		return this.generateTree(childName, whiteListedPaths);
+	}
+
+	public ArrayList<String> generateTree(String childName, HashSet<String> whiteListedPaths) {
+
+		Node nodeToTraverse;
+
+		/*
+		 * If the plain String 'Root' is read, we have to run this method a tiny bit
+		 * differently...
+		 */
+		if (childName.equals("Root")) {
+			nodeToTraverse = this;
+		} else {
+
+			nodeToTraverse = this.getChild(childName);
+
+		}
+		ArrayList<String> outputRows = new ArrayList<String>();
+
+		return this.treeMapRecurse(nodeToTraverse, childName, outputRows, whiteListedPaths);
+	}
+
 	/*
 	 * As input this method accepts the Where Condition Rules and the node to check
 	 * from. If the fields to test for the Where Condition rules are not present,
 	 * the where condition will NOT be satisfied. Returns true or false
 	 */
 
-	public boolean whereConditionSatisfied(LinkedHashMap<String, ArrayList<String>> whereConditionRules,
+	public boolean whereConditionSatisfied(ConcurrentHashMap<String, ArrayList<String>> whereConditionRules,
 			Node currentNode) {
 
 		/* Iterate through the Where Condition rules */
@@ -284,7 +310,36 @@ public class Node {
 			}
 		}
 		return false;
+	}
 
+	/**
+	 * Returns a set of Strings containing a node's descendants. Each entry has the
+	 * startPath removed from it. Example: If an entry is a.b.c and the startPath is
+	 * 'a', that entry will become b.c. Returns a set containing entries for all of
+	 * the node's descendants, recursively. Used in selected node children from
+	 * childNamesValues.
+	 * 
+	 * @return a HashSet<String> of the node's descendants with the startPath
+	 *         removed from each.
+	 */
+	public HashSet<String> buildNodeDescendantPaths(String startPath) {
+
+		HashSet<String> checkedPaths = new HashSet<String>();
+		ArrayList<String> rawResultLines = new ArrayList<String>();
+		String descendantPath = "";
+
+		if (this.getChildCount() > 0) {
+			for (String childName : this.getChildren().keySet()) {
+				rawResultLines = this.generateTree(childName);
+				for (String rawResultLine : rawResultLines) {
+
+					descendantPath = startPath + "." + rawResultLine.split("\\:")[0];
+					checkedPaths.add(descendantPath);
+				}
+			}
+		}
+
+		return checkedPaths;
 	}
 
 	/**
@@ -351,52 +406,60 @@ public class Node {
 		return result;
 	}
 
-	public ArrayList<String> generateTree(String childName) {
-
-		Node nodeToTraverse;
-		
-		/* If the plain String 'Root' is read, we have to run this method a tiny bit differently... */
-		if (childName.equals("Root")) {
-			
-			nodeToTraverse = this;
-		}
-		else {
-		
-			nodeToTraverse = this.getChild(childName);
-		}
-		ArrayList<String> outputRows = new ArrayList<String>();
-		
-		return this.treeMapRecurse(nodeToTraverse, childName, outputRows);
-	}
-
-	private ArrayList<String> treeMapRecurse(Node currentNode, String fullPath, ArrayList<String> outputRows) {
+	private ArrayList<String> treeMapRecurse(Node currentNode, String fullPath, ArrayList<String> outputRows,
+			HashSet<String> whiteListedPaths) {
 
 		Node nextNode;
-		String nodeName;
-
-		if (fullPath.length() > 0) {
-
-			outputRows.add(fullPath + ":" + currentNode.getValue());
-
-		}
-
+		String nodePath;
 		if (currentNode != null) {
+
+			if (fullPath.length() > 0) {
+
+				outputRows.add(fullPath + ":" + currentNode.getValue());
+
+			}
 
 			for (String key : currentNode.getChildren().keySet()) {
 
 				nextNode = currentNode.getChild(key);
 
 				if (fullPath.length() == 0) {
-					nodeName = key;
+					nodePath = key;
 				} else {
-					nodeName = fullPath + "." + key;
+					nodePath = fullPath + "." + key;
 				}
 
-				outputRows = nextNode.treeMapRecurse(nextNode, nodeName, outputRows);
+				if (this.selectedChildrenSatisfied(nodePath, whiteListedPaths)) {
 
+					outputRows = nextNode.treeMapRecurse(nextNode, nodePath, outputRows, whiteListedPaths);
+				}
 			}
 		}
 
 		return outputRows;
 	}
+
+	/**
+	 * Returns true if the nodePath appears in the white listed paths or if the
+	 * white listed paths are not set (the hash set is empty). Otherwise returns
+	 * false. Used to evaluate selected children nodes in 'read' operations
+	 * 
+	 * @param nodePath
+	 * @param whiteListedPaths
+	 * @return
+	 */
+	private boolean selectedChildrenSatisfied(String nodePath, HashSet<String> whiteListedPaths) {
+		
+		if (whiteListedPaths.isEmpty()) {
+
+			return true;
+		}
+		else if (whiteListedPaths.contains(Statement.cleanRootFromString(nodePath))) {
+
+			return true;
+		}
+
+		return false;
+	}
+
 }

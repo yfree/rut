@@ -14,26 +14,40 @@ public class RutFormat extends DataFormat {
 
 	private int tabLength = 4;
 
-	public RutFormat() {
+	public RutFormat(String operation) {
 
+		super(operation);
 	}
 
 	protected String convertLine(String line) {
+
 		String convertedLine = "";
 		String nodePath = "";
 		String nodeValue = "";
-
-		int separatorToken = line.indexOf(':');
-		nodePath = line.substring(0, separatorToken);
 		
-		if (separatorToken < line.length() - 1) {
+	
+		switch (this.operation) {
+		
+		case "read":
 			
-			nodeValue = line.substring(separatorToken + 1);
-	
+			int separatorToken = line.indexOf(':');
+			nodePath = line.substring(0, separatorToken);
+			
+			if (separatorToken < line.length() - 1) {
+				
+				nodeValue = line.substring(separatorToken + 1);
+		
+			}
+		
+			convertedLine = this.convertNodePath(nodePath) + "-> " + nodeValue;
+			return convertedLine;	
+			
+		default:
+		
+			return line;
 		}
+
 	
-		convertedLine = this.convertNodePath(nodePath) + "-> " + nodeValue;
-		return convertedLine;
 	}
 
 	protected String convertNodePath(String fullNodePath) {

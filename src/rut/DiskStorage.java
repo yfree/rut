@@ -64,8 +64,8 @@ public class DiskStorage {
 	 * Reads the database into memory from disk storage.
 	 * 
 	 * The dataMap is where the database lives in memory. All CRUD operations and
-	 * searches are performed on the dataMap. Each node links to its 
-	 * children and with Node.getChildren(), they can be accessed.
+	 * searches are performed on the dataMap. Each node links to its children and
+	 * with Node.getChildren(), they can be accessed.
 	 * 
 	 * @return
 	 */
@@ -74,15 +74,15 @@ public class DiskStorage {
 		String nodeValue;
 		String fullNodeName;
 		Node dataMapNode;
-		
+
 		ConcurrentHashMap<String, ConcurrentHashMap<String, Node>> dataMap = new ConcurrentHashMap<String, ConcurrentHashMap<String, Node>>();
 		ConcurrentHashMap<String, Node> rootRecord = new ConcurrentHashMap<String, Node>();
-		
-		rootRecord.put("Root", new Node());
-		dataMap.put("Root", rootRecord);
-		MemoryStorage memory = new MemoryStorage(dataMap);	
-		
-try {
+
+		rootRecord.put("", new Node());
+		dataMap.put("", rootRecord);
+		MemoryStorage memory = new MemoryStorage(dataMap);
+
+		try {
 			File file = new File(this.storageFileName);
 
 			Scanner masterFile = new Scanner(file);
@@ -115,9 +115,9 @@ try {
 					+ "This file is required for Rut Database Server to run. Exiting...");
 			System.exit(1);
 		}
-		
-		//memory.initDataMapChildLinks();
-		 
+
+		// memory.initDataMapChildLinks();
+
 		return memory.getDataMap();
 	}
 

@@ -1,7 +1,7 @@
 package rut.operation;
 
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.concurrent.ConcurrentHashMap;
 
 import rut.MemoryStorage;
 import rut.Node;
@@ -24,10 +24,12 @@ public class Rename extends Operation {
 		Node parentNode = new Node();
 		int nodesRenamed = 0;
 		String childName = "";
-		LinkedHashMap<String, Node> theChildren = new LinkedHashMap<String, Node>();
+		ConcurrentHashMap<String, Node> theChildren = new ConcurrentHashMap<String, Node>();
 
 		LinkedHashSet<String> dataToProcessOrder = this.generateDescendantDataToProcess(fullPath, fetchedNode);
-
+		String resultLine = "";
+		
+		
 		/* A parent Node matches each child path in the DataToProcess container */
 		for (String fullChildPath : dataToProcessOrder) {
 
@@ -42,10 +44,18 @@ public class Rename extends Operation {
 				this.memory.setWriteToDiskSignal(true);
 				parentNode.setChildren(theChildren);
 				nodesRenamed++;
+				
+				/* The decision was made to only output actual nodes that are being renamed.
+				 * The fact that a node's descendants will have to have their dataMap path updated should be 
+				 * no concern of the user's. */
+				resultLine = fullChildPath + " renamed to " + "'" + this.newNodeName + "'.";
+				this.outputBufferRows.add(resultLine);
+				
 			}
 
 			this.memory.renameParentDataMap(fullChildPath, this.childNameToProcess, this.newNodeName);
 
+			
 		}
 		return nodesRenamed;
 	}

@@ -17,13 +17,14 @@ limitations under the License.
 
 package rut;
 
-import java.util.LinkedHashMap;
+
 import java.util.Date;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -88,7 +89,7 @@ public class Statement {
 	 * are selected within an argument are parsed to. When a value isn't specified,
 	 * the item's value will be empty
 	 */
-	private LinkedHashMap<String, String> childrenNamesValues;
+	private ConcurrentHashMap<String, String> descendantNamesValues;
 
 	/**
 	 * The format that the statement is requested to be returned in.
@@ -107,7 +108,7 @@ public class Statement {
 	 * This is where the where condition rules are parsed to, the key is the field
 	 * name and the value is the required value or expression of the field
 	 */
-	private LinkedHashMap<String, ArrayList<String>> whereConditionRules;
+	private ConcurrentHashMap<String, ArrayList<String>> whereConditionRules;
 
 	/**
 	 * The number of times a statement should be executed. Default value is 1. This
@@ -125,7 +126,7 @@ public class Statement {
 	 * Tokens from the statement that are hidden in order to exclude them from
 	 * standard validation.
 	 */
-	private LinkedHashMap<String, String> hiddenTokens;
+	private ConcurrentHashMap<String, String> hiddenTokens;
 
 	/**
 	 * Tokens which were originally a keyword (such as newid) but were replaced from
@@ -137,7 +138,7 @@ public class Statement {
 	 * statement.
 	 */
 
-	private LinkedHashMap<String, String> keywordTokens;
+	private ConcurrentHashMap<String, String> keywordTokens;
 
 	public Statement() {
 
@@ -157,7 +158,7 @@ public class Statement {
 		statementString.append("Selected Node Name: \"" + this.selectedNodeName + "\"" + newline);
 		statementString.append("Selected Node Value: \"" + this.selectedNodeValue + "\"" + newline);
 		statementString.append("Parent Names: " + this.parentNames + newline);
-		statementString.append("Selected Children Names: " + this.childrenNamesValues + newline);
+		statementString.append("Selected Children Names: " + this.descendantNamesValues + newline);
 		statementString.append("Where Condition: \"" + this.whereCondition + "\"" + newline);
 		statementString.append("Where Condition Rules: " + this.whereConditionRules + newline);
 		statementString.append("Iterations: " + this.iterations + newline);
@@ -175,13 +176,13 @@ public class Statement {
 		this.setSelectedNodeName("");
 		this.setSelectedNodeValue("");
 		this.setParentNames(new ArrayList<String>());
-		this.setChildrenNamesValues(new LinkedHashMap<String, String>());
+		this.setDescendantNamesValues(new ConcurrentHashMap<String, String>());
 		this.setWhereCondition("");
-		this.setWhereConditionRules(new LinkedHashMap<String, ArrayList<String>>());
+		this.setWhereConditionRules(new ConcurrentHashMap<String, ArrayList<String>>());
 		this.setIterations(1);
 		this.errorMessages = new HashSet<String>();
-		this.hiddenTokens = new LinkedHashMap<String, String>();
-		this.keywordTokens = new LinkedHashMap<String, String>();
+		this.hiddenTokens = new ConcurrentHashMap<String, String>();
+		this.keywordTokens = new ConcurrentHashMap<String, String>();
 	}
 
 	/**
@@ -316,7 +317,7 @@ public class Statement {
 		 * Now that names are parsed, individually check them (nothing except names) for
 		 * illegal characters
 		 */
-		String childrenNamesText = String.join(" ", this.childrenNamesValues.keySet());
+		String childrenNamesText = String.join(" ", this.descendantNamesValues.keySet());
 
 		String regex = "[a-zA-Z0-9\\-_\\s]*";
 		if (!Statement.checkStringRegex(regex, this.selectedNodeName)
@@ -388,12 +389,12 @@ public class Statement {
 		this.parentNames = parentNames;
 	}
 
-	public LinkedHashMap<String, String> getChildrenNamesValues() {
-		return this.childrenNamesValues;
+	public ConcurrentHashMap<String, String> getDescendantNamesValues() {
+		return this.descendantNamesValues;
 	}
 
-	public void setChildrenNamesValues(LinkedHashMap<String, String> childrenNamesValues) {
-		this.childrenNamesValues = childrenNamesValues;
+	public void setDescendantNamesValues(ConcurrentHashMap<String, String> descendantNamesValues) {
+		this.descendantNamesValues = descendantNamesValues;
 	}
 
 	public String getWhereCondition() {
@@ -404,11 +405,11 @@ public class Statement {
 		this.whereCondition = whereCondition;
 	}
 
-	public LinkedHashMap<String, ArrayList<String>> getWhereConditionRules() {
+	public ConcurrentHashMap<String, ArrayList<String>> getWhereConditionRules() {
 		return this.whereConditionRules;
 	}
 
-	public void setWhereConditionRules(LinkedHashMap<String, ArrayList<String>> whereConditionRules) {
+	public void setWhereConditionRules(ConcurrentHashMap<String, ArrayList<String>> whereConditionRules) {
 		this.whereConditionRules = whereConditionRules;
 	}
 
@@ -534,7 +535,16 @@ public class Statement {
 		}
 
 	}
+	
+	/**
+	 * Normalize paths that start with the keyword 'Root' (removing the keyword).
+	 */
 
+	public static String cleanRootFromString(String fullPath) {
+
+		return fullPath.startsWith("Root.") ? fullPath.split("Root\\.")[1] : fullPath;
+	}
+	
 	public static String extractKeywordParameter(String text, String keyword) {
 		String parameter = "";
 
@@ -949,7 +959,7 @@ public class Statement {
 	/**
 	 * This method parses the parameters within the argument and populates the
 	 * following member variable: selectedNodeName, parentNames,
-	 * childrenNamesValues, selectedNodeValue Does not touch anything beyond the
+	 * descendantNamesValues, selectedNodeValue Does not touch anything beyond the
 	 * main argument (e.g. a where condition).
 	 */
 	/* Todo: do not replace 'and' if it is in quotes */
@@ -1084,11 +1094,11 @@ public class Statement {
 
 				}
 
-				if (childrenNamesValues.keySet().contains(childName.trim())) {
+				if (descendantNamesValues.keySet().contains(childName.trim())) {
 					this.addError("Children names cannot contain duplicates.");
 				}
 
-				this.childrenNamesValues.put(childName.trim(), childValue.trim());
+				this.descendantNamesValues.put(childName.trim(), childValue.trim());
 
 			}
 
@@ -1200,8 +1210,8 @@ public class Statement {
 				this.addError("Cannot set a value for the read operation.");
 			}
 
-			for (String childName : this.childrenNamesValues.keySet()) {
-				if (!this.childrenNamesValues.get(childName).isEmpty()) {
+			for (String childName : this.descendantNamesValues.keySet()) {
+				if (!this.descendantNamesValues.get(childName).isEmpty()) {
 					this.addError("Children names cannot have values for the read operation.");
 					break;
 				}
@@ -1212,7 +1222,7 @@ public class Statement {
 		case "write":
 
 			if ((this.selectedNodeName.equals("Root") && !this.selectedNodeValue.isEmpty())
-					|| (this.childrenNamesValues.keySet().contains("Root"))) {
+					|| (this.descendantNamesValues.keySet().contains("Root"))) {
 				this.addError("Root is not a valid node to be written to.");
 
 			}
@@ -1243,7 +1253,7 @@ public class Statement {
 			}
 
 			/* Cannot delete root node. */
-			if (this.selectedNodeName.equals("Root") || this.childrenNamesValues.keySet().contains("Root")) {
+			if (this.selectedNodeName.equals("Root") || this.descendantNamesValues.keySet().contains("Root")) {
 
 				this.addError("Cannot delete root node.");
 
@@ -1257,7 +1267,7 @@ public class Statement {
 			}
 
 			/* Cannot use children nodes in a delete operation, e.g. delete a: b,c,d */
-			if (!this.childrenNamesValues.isEmpty()) {
+			if (!this.descendantNamesValues.isEmpty()) {
 
 				this.addError("Child nodes cannot be used in the delete operation.");
 
@@ -1281,7 +1291,7 @@ public class Statement {
 
 			}
 
-			if (this.selectedNodeName.equals("Root") || this.childrenNamesValues.keySet().contains("Root")) {
+			if (this.selectedNodeName.equals("Root") || this.descendantNamesValues.keySet().contains("Root")) {
 
 				this.addError("Root cannot be renamed.");
 
@@ -1293,7 +1303,7 @@ public class Statement {
 
 			}
 
-			if (!this.childrenNamesValues.isEmpty()) {
+			if (!this.descendantNamesValues.isEmpty()) {
 
 				this.addError("Child nodes cannot be used in the rename operation.");
 			}
@@ -1341,11 +1351,11 @@ public class Statement {
 			}
 			/*
 			 * Check that if the selected node name is a rule name (e.g. max, min,
-			 * childrenNamesValues must be empty
+			 * descendantNamesValues must be empty
 			 */
 			if (Definitions.nodeRuleNames.contains(this.selectedNodeName)) {
 
-				if (this.childrenNamesValues.size() > 0) {
+				if (this.descendantNamesValues.size() > 0) {
 
 					this.addError("Cannot set grandchildren for a rule definition node.");
 
@@ -1365,7 +1375,7 @@ public class Statement {
 			 * Check that the rule names are valid if the rules are defined by the children
 			 * nodes
 			 */
-			for (String ruleName : this.childrenNamesValues.keySet()) {
+			for (String ruleName : this.descendantNamesValues.keySet()) {
 
 				if (!Definitions.nodeRuleNames.contains(ruleName)) {
 
@@ -1577,7 +1587,7 @@ public class Statement {
 
 	private void putTokensBack() {
 
-		LinkedHashMap<String, String> newChildrenNamesValues = new LinkedHashMap<String, String>();
+		ConcurrentHashMap<String, String> newDescendantNamesValues = new ConcurrentHashMap<String, String>();
 		String newChildName = "";
 		String newChildValue = "";
 		String tokenValue = "";
@@ -1594,21 +1604,21 @@ public class Statement {
 			this.selectedNodeName = this.selectedNodeName.replace(uniqueId, tokenValue);
 			this.selectedNodeValue = this.selectedNodeValue.replace(uniqueId, tokenValue);
 
-			for (String childName : this.childrenNamesValues.keySet()) {
+			for (String childName : this.descendantNamesValues.keySet()) {
 
-				childValue = this.childrenNamesValues.get(childName);
+				childValue = this.descendantNamesValues.get(childName);
 
 				newChildName = childName.replace(uniqueId, tokenValue);
 				newChildValue = childValue.replace(uniqueId, tokenValue);
 
-				newChildrenNamesValues.put(newChildName, newChildValue);
+				newDescendantNamesValues.put(newChildName, newChildValue);
 			}
 
-		      this.childrenNamesValues = new LinkedHashMap<String, String>();
-              this.childrenNamesValues.putAll(newChildrenNamesValues);
+		      this.descendantNamesValues = new ConcurrentHashMap<String, String>();
+              this.descendantNamesValues.putAll(newDescendantNamesValues);
               
 			/* Where Condition Rules */
-			LinkedHashMap<String, ArrayList<String>> newWhereConditionRules = new LinkedHashMap<String, ArrayList<String>>();
+			ConcurrentHashMap<String, ArrayList<String>> newWhereConditionRules = new ConcurrentHashMap<String, ArrayList<String>>();
 
 			String newRuleElement;
 
@@ -1634,16 +1644,16 @@ public class Statement {
 
 			}
 
-			this.whereConditionRules = new LinkedHashMap<String, ArrayList<String>>();
+			this.whereConditionRules = new ConcurrentHashMap<String, ArrayList<String>>();
             this.whereConditionRules.putAll(newWhereConditionRules);
             
 		}
 		/* The hidden tokens container is then emptied */
-		this.hiddenTokens = new LinkedHashMap<String, String>();
+		this.hiddenTokens = new ConcurrentHashMap<String, String>();
 	}
 
 	/**
-	 * Makes all keywords unique so they can be processed inside childrenNamesValues
+	 * Makes all keywords unique so they can be processed inside descendantNamesValues
 	 * when multiple occurrences appear such as two children named 'newid'. The
 	 * replaced unique id appends a digit to the unique id, which will be ignored by
 	 * the interpreter. Postcondition: statementString is modified to have all

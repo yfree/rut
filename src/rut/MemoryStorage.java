@@ -46,7 +46,6 @@ package rut;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
@@ -54,6 +53,8 @@ import java.util.regex.Pattern;
 public class MemoryStorage {
 
 	private Node rootNode;
+
+	private ConcurrentHashMap<String, Node> rootData;
 
 	private ConcurrentHashMap<String, ConcurrentHashMap<String, Node>> dataMap;
 
@@ -67,7 +68,10 @@ public class MemoryStorage {
 	public MemoryStorage(ConcurrentHashMap<String, ConcurrentHashMap<String, Node>> theDataMap) {
 
 		this.dataMap = theDataMap;
-		this.rootNode = this.dataMap.get("Root").get("Root");
+		this.rootNode = this.dataMap.get("").get("");
+
+		this.rootData = new ConcurrentHashMap<String, Node>();
+		this.rootData.put("", this.rootNode);
 
 		this.killSignal = false;
 		this.writeToDiskSignal = false;
@@ -79,8 +83,8 @@ public class MemoryStorage {
 		return this.rootNode;
 	}
 
-	public void setRootNode(Node rootNode) {
-		this.rootNode = rootNode;
+	public ConcurrentHashMap<String, Node> getRootData() {
+		return this.rootData;
 	}
 
 	public ConcurrentHashMap<String, Node> getFlatDataMap() {
@@ -104,12 +108,9 @@ public class MemoryStorage {
 	/* Adds a node to the dataMap */
 	public boolean addDataMap(Node node, String fullPath) {
 
-		/* Normalize Data Map entry by removing the Root keyword */
-		fullPath = fullPath.replace("Root.", "");
-
 		String nodeName = this.parseNodeName(fullPath);
 		String parentName = this.parseParentName(fullPath);
-		
+
 		ConcurrentHashMap<String, Node> nodesByName = this.dataMap.get(nodeName);
 
 		/* If record for nodes with that name doesn't exist, create the HashMap */
@@ -124,11 +125,7 @@ public class MemoryStorage {
 		try {
 
 			Node parentNode = this.justNodes(this.getDataByPath(parentName, true)).get(0);
-
 			parentNode.setChild(nodeName, node);
-
-			// System.out.println("Linking " + nodeName + " to its parent " + parentName +
-			// ".");
 
 		} catch (Exception e) {
 
@@ -157,13 +154,10 @@ public class MemoryStorage {
 
 		String newNodePath = "";
 		String nodeName = "";
-		
-		/* Normalize Data Map entry by removing the Root keyword */
-		fullPath = fullPath.replace("Root.", "");
 
 		nodeName = this.parseNodeName(fullPath);
 		Node currentNode = new Node();
-		ConcurrentHashMap<String, Node> nodesByName = new ConcurrentHashMap<String, Node>(); 
+		ConcurrentHashMap<String, Node> nodesByName = new ConcurrentHashMap<String, Node>();
 		nodesByName = this.dataMap.get(nodeName);
 
 		if (nodesByName == null) {
@@ -172,42 +166,34 @@ public class MemoryStorage {
 		}
 
 		currentNode = nodesByName.remove(fullPath);
-		
-		newNodePath = fullPath.replace("." + oldParentName + ".", 
-				                       "." + newParentName + ".");
-		
+
+		newNodePath = fullPath.replace("." + oldParentName + ".", "." + newParentName + ".");
 
 		if (fullPath.startsWith(oldParentName + ".")) {
-			
+
 			newNodePath = newNodePath.replaceFirst(oldParentName + ".", newParentName + ".");
-		
-		} else if (fullPath.endsWith("." + oldParentName)){
-		
+
+		} else if (fullPath.endsWith("." + oldParentName)) {
+
 			newNodePath = newNodePath.replace("." + oldParentName, "." + newParentName);
-		
-		}else if (fullPath.equals(oldParentName)) {
-		
+
+		} else if (fullPath.equals(oldParentName)) {
+
 			newNodePath = newNodePath.replace(oldParentName, newParentName);
-		
+
 		}
-		
-		/* Normalize Data Map entry by removing the Root keyword */
-		fullPath = fullPath.replace("Root.", "");
-		
+
 		nodeName = this.parseNodeName(newNodePath);
-		
+
 		nodesByName.put(newNodePath, currentNode);
 		this.dataMap.put(nodeName, nodesByName);
-		
+
 		return true;
 
 	}
 
 	/* Deletes a node from the dataMap */
 	public boolean deleteDataMap(String fullPath) {
-
-		/* Normalize Data Map entry by removing the Root keyword */
-		fullPath = fullPath.replace("Root.", "");
 
 		String nodeName = this.parseNodeName(fullPath);
 
@@ -233,6 +219,30 @@ public class MemoryStorage {
 
 		return true;
 
+	}
+
+	/**
+	 * Returns true if the subPath is inside the path, otherwise it returns false.
+	 * There are some things to take into consideration here. We do not want the
+	 * beginning or ending of a subPath to partially match a node name. For instance
+	 * we don't want something like 'database.2' matching 'database.22'. Therefore
+	 * numerous requirements are presented here to pass the check
+	 * 
+	 * @param subPath
+	 * @param path
+	 * @return
+	 */
+
+	public boolean checkSubPathInPath(String subPath, String path) {
+		boolean success = false;
+
+		if (subPath.equals("Root") || path.contains("." + subPath + ".") || path.startsWith(subPath + ".") || path.endsWith("." + subPath)
+				|| path.equals(subPath)) {
+
+			success = true;
+		}
+
+		return success;
 	}
 
 	/**
@@ -265,16 +275,11 @@ public class MemoryStorage {
 	 * a.b.c will be returned. If a is provided as input, Root will be returned.
 	 * 
 	 * @param fullPath - the full path of the node, separated by periods
-	 * @return the parsed name of the node
+	 * @return the parsed parent names of the node
 	 */
 	public String parseParentName(String fullPath) {
 
-		/*
-		 * Default entry is 'Root'. This will be normalized to the proper path without
-		 * that word through the pipe line, but for now it's easiest this way.
-		 */
-
-		String parentName = "Root";
+		String parentName = "";
 
 		int lastDot = 0;
 
@@ -327,8 +332,10 @@ public class MemoryStorage {
 		Node currentNode;
 
 		for (String fullPath : flatDataMap.keySet()) {
-			/* Root is not included in the dump */
-			if (fullPath.equals("Root")) {
+
+			/* We do not dump 'Root' which is a blank entry with no name or value */
+			if (fullPath.equals("")) {
+
 				continue;
 			}
 
@@ -355,10 +362,6 @@ public class MemoryStorage {
 
 		for (String nodeName : sortedNames) {
 
-			if (nodeName.equals("Root")) {
-				continue;
-			}
-
 			ConcurrentHashMap<String, Node> nodeRecords = this.dataMap.get(nodeName);
 
 			ArrayList<String> sortedRecords = new ArrayList<String>();
@@ -374,21 +377,6 @@ public class MemoryStorage {
 
 		return result.toString();
 	}
-	/*
-	 * 
-	 * ArrayList<Node> getNodesByName(String nodeName){
-	 * 
-	 * return resultNodes;
-	 * 
-	 * }
-	 * 
-	 * ArrayList<Node> getNodesByFullPath(String nodeName){
-	 * 
-	 * return resultNodes;
-	 * 
-	 * }
-	 * 
-	 */
 
 	public long getUid() {
 		return this.uid;
@@ -433,8 +421,6 @@ public class MemoryStorage {
 	 *         are the nodes themselves
 	 */
 	public ConcurrentHashMap<String, Node> getDataByPath(String path, boolean searchRules) {
-		path = path.replace("Root.", "");
-
 		ConcurrentHashMap<String, Node> dataResults = new ConcurrentHashMap<String, Node>();
 		String nodeName = this.parseNodeName(path);
 		ConcurrentHashMap<String, Node> nodeRecords = this.dataMap.get(nodeName);
@@ -446,9 +432,7 @@ public class MemoryStorage {
 
 		for (String fullPath : nodeRecords.keySet()) {
 
-			if (!fullPath.contains("." + path) && !(fullPath.startsWith(path))) {
-				continue;
-			} else {
+			if (this.checkSubPathInPath(path, fullPath)) {
 
 				if (fullPath.matches("\\.rules\\.") || fullPath.endsWith("\\.rules")) {
 					if (!searchRules) {
@@ -468,10 +452,10 @@ public class MemoryStorage {
 	 * Retrieves the node rules from memory and constructs a container out of them.
 	 * 
 	 * @param selectedNodeName the rule name set to build
-	 * @return LinkedHashMap<rule name, rule value>
+	 * @return ConcurrentHashMap<rule name, rule value>
 	 */
-	public LinkedHashMap<String, String> getRulesByRuleSetName(String selectedNodeName) {
-		LinkedHashMap<String, String> theRules = new LinkedHashMap<String, String>();
+	public ConcurrentHashMap<String, String> getRulesByRuleSetName(String selectedNodeName) {
+		ConcurrentHashMap<String, String> theRules = new ConcurrentHashMap<String, String>();
 
 		Node ruleNode = this.getNodeByHierarchy("rule." + selectedNodeName, true);
 
@@ -515,15 +499,11 @@ public class MemoryStorage {
 		ConcurrentHashMap<String, Node> childNodesData = this.getDataByPath(nodeName, searchRules);
 		ConcurrentHashMap<String, Node> parentNodesData;
 		String parentName = "";
-//getDataByPath cannot find it the variable...
 
 		for (String fullPath : childNodesData.keySet()) {
 
 			parentName = this.parseParentName(fullPath);
-
-			// System.out.println("Parent name is " + parentName);
 			parentNodesData = this.getDataByPath(parentName, searchRules);
-
 			resultNodesData.putAll(parentNodesData);
 
 		}
@@ -535,7 +515,7 @@ public class MemoryStorage {
 
 		ArrayList<Node> resultNodes = new ArrayList<Node>();
 
-		if (nodeName.equals("Root")) {
+		if (nodeName.equals("")) {
 			resultNodes.add(this.rootNode);
 		} else {
 			resultNodes = getNodesByName(nodeName, false);
@@ -550,11 +530,6 @@ public class MemoryStorage {
 	public ArrayList<Node> getNodesByNamePathContains(String nodeName, String path, boolean searchRules) {
 		Node currentNode;
 		ArrayList<Node> resultNodes = new ArrayList<Node>();
-		/*
-		 * if (nodeName.equals("Root")) { resultNodes.add(this.rootNode);
-		 * 
-		 * return resultNodes; }
-		 */
 
 		for (String fullPath : this.dataMap.get(nodeName).keySet()) {
 
@@ -607,72 +582,6 @@ public class MemoryStorage {
 		return resultNodes;
 	}
 
-	/**
-	 * Get the nodes by name but also determine whether or not you want to search
-	 * the rule nodes.
-	 * 
-	 * @param nodeName    the node name to search for
-	 * @param searchRules search the rule nodes, true or false
-	 * @return the result set - an arrayList of Nodes
-	 */
-	/*
-	 * public ArrayList<Node> getNodesByName(String nodeName, boolean searchRules) {
-	 * Node currentNode = this.rootNode; ArrayList<Node> resultNodes = new
-	 * ArrayList<Node>();
-	 * 
-	 * if (nodeName.equals("Root")) { resultNodes.add(this.rootNode); } else {
-	 * resultNodes = getNodesByName(nodeName, currentNode, resultNodes,
-	 * searchRules); } return resultNodes; }
-	 */
-	/**
-	 * Get nodes by their name but limit the results to start with a specific node
-	 * as the tree root
-	 * 
-	 * @param nodeName
-	 * @param currentNode
-	 * @return
-	 */
-	/*
-	 * public ArrayList<Node> getNodesByName(String nodeName, Node currentNode) {
-	 * ArrayList<Node> resultNodes = new ArrayList<Node>();
-	 * 
-	 * return getNodesByName(nodeName, currentNode, resultNodes, false); }
-	 */
-	/**
-	 * Same thing as getNodesByName except it returns the type 'Node' and will only
-	 * return the first result if multiple nodes are found with that name. This
-	 * version of the method will limit the results to start with a specific node as
-	 * the tree root. Does not search rules.
-	 * 
-	 * @param nodeName
-	 * @param currentNode
-	 * @return
-	 */
-	/*
-	 * public Node getNodeByName(String nodeName, Node currentNode) { return
-	 * getNodeByName(nodeName, currentNode, false); }
-	 */
-	/**
-	 * Same thing as getNodesByName except it returns the type 'Node' and will only
-	 * return the first result if multiple nodes are found with that name. This
-	 * version of the method will limit the results to start with a specific node as
-	 * the tree root. Can specify whether or not to search for rules by passing that
-	 * option as a boolean parameter.
-	 * 
-	 * @param nodeName
-	 * @param currentNode
-	 * @param searchRules
-	 * @return
-	 */
-
-	/*
-	 * public Node getNodeByName(String nodeName, Node currentNode, boolean
-	 * searchRules) { ArrayList<Node> resultNodes = new ArrayList<Node>();
-	 * resultNodes = this.getNodesByName(nodeName, searchRules);
-	 * 
-	 * if (resultNodes.size() > 0) { return resultNodes.get(0); } else { return
-	 * null; } }
-	 */
 	/**
 	 * Same thing as getNodesByName except it returns the type 'Node' and will only
 	 * return the first result if multiple nodes are found with that name
@@ -882,7 +791,7 @@ public class MemoryStorage {
 
 		String nextNodeName;
 		Node currentNode;
-		if (nodeNames.get(0).equals("Root")) {
+		if (nodeNames.get(0).equals("")) {
 			currentNode = this.rootNode;
 		} else {
 			currentNode = this.getNodeByName(nodeNames.get(0), searchRules);
@@ -912,7 +821,7 @@ public class MemoryStorage {
 
 		int nodesDeleted = 0;
 
-		LinkedHashMap<String, Node> theChildren = parentNode.getChildren();
+		ConcurrentHashMap<String, Node> theChildren = parentNode.getChildren();
 		Node deletedNode = theChildren.remove(nodeName);
 
 		if (deletedNode != null) {
@@ -972,7 +881,7 @@ public class MemoryStorage {
 
 		int renamedNodes = 0;
 
-		LinkedHashMap<String, Node> theChildren = parentNode.getChildren();
+		ConcurrentHashMap<String, Node> theChildren = parentNode.getChildren();
 		Node childNode = theChildren.get(nodeName);
 		Node deletedNode = theChildren.remove(nodeName);
 
@@ -986,44 +895,6 @@ public class MemoryStorage {
 		return renamedNodes;
 	}
 
-	/**
-	 * This the private implementation of getNodesByName with all of the extra
-	 * parameters that are automatically populated in the public method.
-	 * 
-	 * @param nodeName    - the current node being searched for
-	 * @param currentNode - the current Node object being traversed
-	 * @param resultNodes - the container of node found
-	 * @param searchRules - boolean true or false, whether root.rules.* should be
-	 *                    included in the result set or not. Default is false
-	 * @return
-	 */
-	/*
-	 * private ArrayList<Node> getNodesByName(String nodeName, Node currentNode,
-	 * ArrayList<Node> resultNodes, boolean searchRules) {
-	 * 
-	 * Node nextNode;
-	 */
-	/* If its a LeafNode, stop traversing */
-	/*
-	 * if (currentNode.getChildren().isEmpty()) { return resultNodes; }
-	 * 
-	 * for (String key : currentNode.getChildren().keySet()) {
-	 */
-	/* Skip rules from being traversed if specified */
-	/*
-	 * if (!searchRules && key.equals("rule")) {
-	 * 
-	 * continue; }
-	 * 
-	 * nextNode = currentNode.get(key);
-	 */
-	/* If the Next Node's name is a match, add it to the list of Result Nodes */
-	/*
-	 * if (nodeName.equals(key)) { resultNodes.add(nextNode); }
-	 * 
-	 * resultNodes = this.getNodesByName(nodeName, nextNode, resultNodes,
-	 * searchRules); } return resultNodes; }
-	 */
 	/**
 	 * This the private implementation of getNodesByValue with all of the extra
 	 * parameters that are automatically populated in the public method.

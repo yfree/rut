@@ -1,7 +1,7 @@
 package rut.keywords;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 import rut.MemoryStorage;
 import rut.Node;
@@ -40,14 +40,14 @@ public class Newid extends Keyword {
 		
 		statement.setSelectedNodeValue(processedValue);
 		
-		/* childrenNamesValues */
+		/* descendantNamesValues */
 
 		String newChildName, newChildValue, childValue;
-		LinkedHashMap<String, String> newChildrenNamesValues = new LinkedHashMap<String, String>();
+		ConcurrentHashMap<String, String> newDescendantNamesValues = new ConcurrentHashMap<String, String>();
 
-		for (String childName : statement.getChildrenNamesValues().keySet()) {
+		for (String childName : statement.getDescendantNamesValues().keySet()) {
 
-			childValue = statement.getChildrenNamesValues().get(childName);
+			childValue = statement.getDescendantNamesValues().get(childName);
 			
 			/* child name */
 			newChildName = this.processValue(childName, tokenList);
@@ -55,11 +55,11 @@ public class Newid extends Keyword {
 			/* child value */
 			newChildValue = this.processNonTranslatedValue(childValue, tokenList);
 			
-			newChildrenNamesValues.put(newChildName, newChildValue);
+			newDescendantNamesValues.put(newChildName, newChildValue);
 
 		}
 
-		statement.setChildrenNamesValues(newChildrenNamesValues);
+		statement.setDescendantNamesValues(newDescendantNamesValues);
 
 		statement.clearKeywordTokenList(this.getKeywordName());
 
