@@ -40,9 +40,9 @@ public abstract class Operation {
 	public String operation;
 	public String opVerbPastTense;
 	public String childNameToProcess;
-	public ConcurrentHashMap<String, Node> dataToProcess;
+	public ConcurrentHashMap<String, Node> childDataToProcess;
 	protected ConcurrentHashMap<String, Node> fetchedNodesData;
-	protected ConcurrentHashMap<String, String> descendantNamesValues;
+	protected ConcurrentHashMap<String, String> childNamesValues;
 	protected ConcurrentHashMap<String, Node> fetchedSelectedChildNodesData;
 	protected boolean searchRules;
 
@@ -54,10 +54,10 @@ public abstract class Operation {
 		this.operation = opStatement.getOperation();
 		this.outputBufferRows = new ArrayList<String>();
 		this.processedNodesCount = 0;
-		this.dataToProcess = new ConcurrentHashMap<String, Node>();
+		this.childDataToProcess = new ConcurrentHashMap<String, Node>();
 		this.fetchedNodesData = new ConcurrentHashMap<String, Node>();
 		this.fetchedSelectedChildNodesData = new ConcurrentHashMap<String, Node>();
-		this.descendantNamesValues = new ConcurrentHashMap<String, String>();
+		this.childNamesValues = new ConcurrentHashMap<String, String>();
 		this.searchRules = false;
 	}
 
@@ -68,18 +68,19 @@ public abstract class Operation {
 	 * Otherwise, the develop can use this execute method for their operation and
 	 * just define the method processNode(), which is going to determine what
 	 * happens to the nodes that are fetched.
+	 * This method returns the string response sent from the interpreter.
 	 */
 	public String execute() {
 
 		this.childNameToProcess = this.statement.getSelectedNodeName();
 
-		String selectedNodeValue = statement.getSelectedNodeValue();
-		this.descendantNamesValues = statement.getDescendantNamesValues();
-		ArrayList<String> parentNames = statement.getParentNames();
-		ConcurrentHashMap<String, ArrayList<String>> whereConditionRules = statement.getWhereConditionRules();
+		String selectedNodeValue = this.statement.getSelectedNodeValue();
+		this.childNamesValues = this.statement.getChildNamesValues();
+		ArrayList<String> parentNames = this.statement.getParentNames();
+		ConcurrentHashMap<String, ArrayList<String>> whereConditionRules = this.statement.getWhereConditionRules();
 		this.searchRules = parentNames.contains("rule");
 		ConcurrentHashMap<String, Node> nodesData = new ConcurrentHashMap<String, Node>();
-		String nodeHierarchy = Statement.cleanRootFromString(statement.getNodeHierarchyString());
+		String nodeHierarchy = Statement.cleanRootFromString(this.statement.getNodeHierarchyString());
 		/*
 		 * We need a parent node and a child name to do processing. We are now going to
 		 * fetch the parent node
@@ -200,25 +201,24 @@ public abstract class Operation {
 	}
 
 	/**
-	 * generateDescendantDataToProcess populates the member variable dataToProcess
-	 * with not only the child path and parent node of the full child path/fetched
-	 * node passed to it (in ready for processing format), but also all of the
-	 * node's descendants. This is useful for operations where the node to process's
-	 * descendants must also be operated on the same way (delete, rename). Due to
-	 * the fact that the order may be of importance (for instance with the delete
-	 * operation)
+	 * After a node is processed - its children generally have to be processed as well.
+	 * Changes can cause effects down the tree.
 	 * 
-	 * NOTE: In order to use this method, simply call it within your operation
+	 * generateChildDataToProcess populates the member variable dataToProcess
+	 * with the child path and parent node of the full child path/fetched
+	 * node passed to it (in ready for processing format), along with all of the
+	 * node's children. 
+	 * NOTE: In order to use this method, call it within your operation
 	 * specific processNodeData and pass it the parameters that were passed to
-	 * processNodeData. It will return a LinkedHashSet of the descendant paths to
+	 * processNodeData. It will return a LinkedHashSet of the child paths to
 	 * process in the appropriate order. More importantly though, it will also
 	 * populate the member variable Operation 'dataToProcess'.
-	 * @return nodeToProcessOrder HashSet - this is the ORDER of the descendants
-	 * You need to keep this variable and process and process the descendants in this order.
-	 * Order matters very much for processing the descendants
+	 * @return nodeToProcessOrder HashSet - this is the ORDER of the children
+	 * You need to keep this variable and process and process the children in this order.
+	 * Order matters very much for processing the children
 	 */
 
-	protected LinkedHashSet<String> generateDescendantDataToProcess(String fullPath, Node fetchedNode) {
+	protected LinkedHashSet<String> generateChildDataToProcess(String fullPath, Node fetchedNode) {
 
 		StringBuilder finalPath = new StringBuilder();
 		finalPath.append(fullPath);
@@ -254,7 +254,7 @@ public abstract class Operation {
 				if (parentNodeData.size() > 0) {
 
 					parentNode = memory.justNodes((parentNodeData)).get(0);
-					this.dataToProcess.put(fullPathOfChild, parentNode);
+					this.childDataToProcess.put(fullPathOfChild, parentNode);
 					dataToProcessOrder.add(fullPathOfChild);
 				}
 
@@ -264,7 +264,7 @@ public abstract class Operation {
 
 			fullPathOfChild = finalPath.toString() + this.childNameToProcess;
 			dataToProcessOrder.add(fullPathOfChild);
-			this.dataToProcess.put(fullPathOfChild, fetchedNode);
+			this.childDataToProcess.put(fullPathOfChild, fetchedNode);
 		}
 
 		return dataToProcessOrder;

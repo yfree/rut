@@ -258,7 +258,7 @@ public class Interpreter {
 	 * individual error messages are added within these helper methods.
 	 * 
 	 * @param selectedNodeName
-	 * @param descendantNamesValues
+	 * @param childNamesValues
 	 * @return
 	 */
 	private boolean checkForOpErrors(Statement statement) {
@@ -268,7 +268,7 @@ public class Interpreter {
 		ArrayList<String> parentNames = statement.getParentNames();
 		String selectedNodeName = statement.getSelectedNodeName();
 		String selectedNodeValue = statement.getSelectedNodeValue();
-		ConcurrentHashMap<String, String> descendantNamesValues = statement.getDescendantNamesValues();
+		ConcurrentHashMap<String, String> childNamesValues = statement.getChildNamesValues();
 
 		switch (statement.getOperation()) {
 
@@ -312,7 +312,7 @@ public class Interpreter {
 			}
 			/* Otherwise the rules to set are the children names values */
 			else {
-				rulesToSet = descendantNamesValues;
+				rulesToSet = childNamesValues;
 			}
 
 			/* Check that the rule values are valid */
@@ -393,18 +393,18 @@ public class Interpreter {
 	 * cannot be passed.
 	 * 
 	 * @param selectedNodeName
-	 * @param descendantNamesValues
+	 * @param childNamesValues
 	 * @return
 	 */
 
 	private String executeOpEnforce(String selectedNodeName, String selectedNodeValue,
-			ConcurrentHashMap<String, String> descendantNamesValues, ArrayList<String> parentNames,
+			ConcurrentHashMap<String, String> childNamesValues, ArrayList<String> parentNames,
 			ConcurrentHashMap<String, ArrayList<String>> whereConditionRules) {
 
 		/* This is the node name that the rules will be children of */
 		String ruleSetName = this.resolveRuleSetName(selectedNodeName, parentNames);
 
-		//this.executeOpWrite(selectedNodeName, selectedNodeValue, descendantNamesValues, parentNames, whereConditionRules);
+		//this.executeOpWrite(selectedNodeName, selectedNodeValue, childNamesValues, parentNames, whereConditionRules);
 
 		/* This skips rules if they already exist */
 		this.memory.createDefaultRuleSet(ruleSetName);
@@ -424,16 +424,16 @@ public class Interpreter {
 	 * them with values.
 	 * 
 	 * @param parentNode          the parent node to write to
-	 * @param descendantNamesValues the children and values to write for the parent
+	 * @param childNamesValues the children and values to write for the parent
 	 *                            node
 	 * @return the number of children nodes
 	 */
-	private int generateChildrenNodes(Node parentNode, ConcurrentHashMap<String, String> descendantNamesValues) {
+	private int generateChildrenNodes(Node parentNode, ConcurrentHashMap<String, String> childNamesValues) {
 		String childValue = "";
 		Node childNode;
 
-		for (String childName : descendantNamesValues.keySet()) {
-			childValue = descendantNamesValues.get(childName);
+		for (String childName : childNamesValues.keySet()) {
+			childValue = childNamesValues.get(childName);
 
 			childNode = new Node();
 			if (childValue.isEmpty()) {
@@ -452,7 +452,7 @@ public class Interpreter {
 			parentNode.setChildren(nodeChildren);
 		}
 
-		return descendantNamesValues.keySet().size();
+		return childNamesValues.keySet().size();
 	}
 
 	/**
@@ -468,7 +468,7 @@ public class Interpreter {
 
 		String selectedNodeName = statement.getSelectedNodeName();
 		String selectedNodeValue = statement.getSelectedNodeValue();
-		ConcurrentHashMap<String, String> descendantNamesValues = statement.getDescendantNamesValues();
+		ConcurrentHashMap<String, String> childNamesValues = statement.getChildNamesValues();
 
 		ConcurrentHashMap<String, String> rules = this.memory.getRulesByRuleSetName(selectedNodeName);
 
@@ -487,11 +487,11 @@ public class Interpreter {
 			}
 		}
 
-		if (!descendantNamesValues.isEmpty()) {
+		if (!childNamesValues.isEmpty()) {
 
-			for (String childName : descendantNamesValues.keySet()) {
+			for (String childName : childNamesValues.keySet()) {
 
-				String childValue = descendantNamesValues.get(childName);
+				String childValue = childNamesValues.get(childName);
 				rules = this.memory.getRulesByRuleSetName(childName);
 
 				if (!rules.isEmpty()) {
@@ -661,7 +661,7 @@ public class Interpreter {
 	 * from being evaluated.
 	 * 
 	 * @param selectedNodeName    - the name of the node being enforced
-	 * @param descendantNamesValues - the enforced rules and their values
+	 * @param childNamesValues - the enforced rules and their values
 	 * @param statementErrors
 	 * @return boolean result - true or false
 	 */
@@ -932,7 +932,7 @@ public class Interpreter {
 					if (statement.getSelectedNodeName().equals(nodeName)) {
 
 						nodeHierarchy = statement.getNodeHierarchy();
-					} else if (statement.getDescendantNamesValues().keySet().contains(nodeName)) {
+					} else if (statement.getChildNamesValues().keySet().contains(nodeName)) {
 
 						nodeHierarchy = statement.getNodeHierarchy();
 						nodeHierarchy.add(nodeName);
@@ -976,7 +976,7 @@ public class Interpreter {
 	 * This method resolves a node rule's value when it is supplied with the rule
 	 * name, the node name that the rule is set for, and the user statement. The
 	 * order of precedence is that first it checks the value that is to be set for
-	 * the rule in the statement's descendantNamesValues, and in the case where the
+	 * the rule in the statement's childNamesValues, and in the case where the
 	 * selectedNodeName is the rule name, it checks that too. If the rule name is
 	 * not found, it will search the database for the value of this rule. If found,
 	 * the rule value will be returned, otherwise an empty value will be returned.
@@ -1012,9 +1012,9 @@ public class Interpreter {
 
 		}
 		/* Check if the children name values contains the rule name */
-		else if (statement.getDescendantNamesValues().keySet().contains(ruleName)) {
+		else if (statement.getChildNamesValues().keySet().contains(ruleName)) {
 
-			result = statement.getDescendantNamesValues().get(ruleName);
+			result = statement.getChildNamesValues().get(ruleName);
 		}
 
 		/* Check if the rule exists in the database */

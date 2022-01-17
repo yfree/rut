@@ -57,14 +57,14 @@ public abstract class Keyword {
 		
 		statement.setSelectedNodeValue(processedValue);
 		
-		/* descendantNamesValues */
+		/* childNamesValues */
 
 		String newChildName, newChildValue, childValue;
-		ConcurrentHashMap<String, String> newDescendantNamesValues = new ConcurrentHashMap<String, String>();
+		ConcurrentHashMap<String, String> newChildNamesValues = new ConcurrentHashMap<String, String>();
 
-		for (String childName : statement.getDescendantNamesValues().keySet()) {
+		for (String childName : statement.getChildNamesValues().keySet()) {
 
-			childValue = statement.getDescendantNamesValues().get(childName);
+			childValue = statement.getChildNamesValues().get(childName);
 			
 			/* child name */
 			newChildName = this.processValue(childName, tokenList);
@@ -72,11 +72,11 @@ public abstract class Keyword {
 			/* child value */
 			newChildValue = this.processValue(childValue, tokenList);
 			
-			newDescendantNamesValues.put(newChildName, newChildValue);
+			newChildNamesValues.put(newChildName, newChildValue);
 
 		}
 
-		statement.setDescendantNamesValues(newDescendantNamesValues);
+		statement.setChildNamesValues(newChildNamesValues);
 
 		statement.clearKeywordTokenList(this.keywordName);
 

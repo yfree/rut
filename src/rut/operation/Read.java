@@ -20,22 +20,31 @@ public class Read extends Operation {
 
 		int nodeCount = 0;
 		ArrayList<String> rawResultLines = new ArrayList<String>();
-
-		if (this.descendantNamesValues.isEmpty()) {
+		if (this.childNamesValues.isEmpty()) {
 			rawResultLines = fetchedNode.generateTree(this.childNameToProcess);
 		} else {
-			HashSet<String> selectedChildNodePaths = this.fetchSelectedChildNodePaths(fullPath);
+			
+			for (String childName : this.childNamesValues.keySet()) {
+				
+				rawResultLines = fetchedNode.generateTree(this.childNameToProcess, childName);
+				
+			}
+
+			
+			//HashSet<String> selectedChildNodePaths = this.fetchSelectedChildNodePaths(fullPath);
 
 			/*
 			 * If none of the selected node children exist, white list only the selected
 			 * node, no children
 			 */
+			/*
 			if (selectedChildNodePaths.isEmpty()) {
 
 				selectedChildNodePaths.add(this.childNameToProcess);
 			}
 
 			rawResultLines = fetchedNode.generateTree(this.childNameToProcess, selectedChildNodePaths);
+			*/
 		}
 
 		nodeCount = rawResultLines.size();
@@ -47,7 +56,7 @@ public class Read extends Operation {
 
 	/**
 	 * Retrieves the child nodes selected based on the fullPath String that is passed 
-	 * to the method. Whatever the fullPath is, only its descendants will be searched for the children nodes that are
+	 * to the method. Whatever the fullPath is, only its children will be searched for the children nodes that are
 	 * from childNameValues. The node data is returned
 	 * 
 	 * 
@@ -58,9 +67,9 @@ public class Read extends Operation {
 		ConcurrentHashMap<String, Node> candidateChildNodesData = new ConcurrentHashMap<String, Node>();
 		HashSet<String> checkedChildNodePaths = new HashSet<String>();
 
-		for (String descendantName : this.descendantNamesValues.keySet()) {
+		for (String childName : this.childNamesValues.keySet()) {
 
-			candidateChildNodesData = this.memory.getDataByPath(descendantName, this.searchRules);
+			candidateChildNodesData = this.memory.getDataByPath(childName, this.searchRules);
 			checkedChildNodePaths.addAll(this.buildChildNodePaths(candidateChildNodesData, fullPath));
 		}
 
@@ -73,15 +82,15 @@ public class Read extends Operation {
 	 * map that contains the name matching a name in the selected childNameValues and the fullPath 
 	 * (as passed by the previous method that calls this)
 	 * This method will check each entry in the data map to make sure the node is a
-	 * descendant of the selected node. i.e. just because it has the name we are
+	 * child of the selected node. i.e. just because it has the name we are
 	 * looking for doesn't mean it is one of the selected node's children. Once this
-	 * is verified, it will also add all of node's descendants...This method doesn't
+	 * is verified, it will also add all of node's children...This method doesn't
 	 * just check, it also builds, hence the name. Upon completion a HashSet will be
 	 * returned containing only the paths of nodes that have the correct node name
-	 * AND are descendants of the selected node. The returned paths START with the
+	 * AND are children of the selected node. The returned paths START with the
 	 * selected node name...
 	 * 
-	 * @param candidateChildNodesData data of paths to check their descendants
+	 * @param candidateChildNodesData data of paths to check their children
 	 * @return HashSet<String> of checked paths that start with the selected node
 	 *         name
 	 */
@@ -106,7 +115,7 @@ public class Read extends Operation {
 			}
 
 			/*
-			 * If currentPath passes this check, the node is a descendant of our selected
+			 * If currentPath passes this check, the node is a child of our selected
 			 * node and a valid result
 			 */
 			
@@ -115,7 +124,7 @@ public class Read extends Operation {
 
 				checkedPaths.addAll(this.explodeNodePaths(shortCandidatePath));
 
-				/* Check this child node for its own descendants and add them to the list */
+				/* Check this child node for its own children and add them to the list */
 				checkedPaths.addAll(currentNode.buildNodeDescendantPaths(shortCandidatePath));
 
 			}

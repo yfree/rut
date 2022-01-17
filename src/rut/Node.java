@@ -249,12 +249,10 @@ public class Node {
 
 	public ArrayList<String> generateTree(String childName) {
 
-		HashSet<String> whiteListedPaths = new HashSet<String>();
-
-		return this.generateTree(childName, whiteListedPaths);
+		return this.generateTree(childName, "");
 	}
 
-	public ArrayList<String> generateTree(String childName, HashSet<String> whiteListedPaths) {
+	public ArrayList<String> generateTree(String childName, String endNodePath) {
 
 		Node nodeToTraverse;
 
@@ -271,7 +269,7 @@ public class Node {
 		}
 		ArrayList<String> outputRows = new ArrayList<String>();
 
-		return this.treeMapRecurse(nodeToTraverse, childName, outputRows, whiteListedPaths);
+		return this.treeMapRecurse(nodeToTraverse, childName, outputRows, endNodePath);
 	}
 
 	/*
@@ -407,7 +405,7 @@ public class Node {
 	}
 
 	private ArrayList<String> treeMapRecurse(Node currentNode, String fullPath, ArrayList<String> outputRows,
-			HashSet<String> whiteListedPaths) {
+			String endNodePath) {
 
 		Node nextNode;
 		String nodePath;
@@ -421,6 +419,17 @@ public class Node {
 
 			for (String key : currentNode.getChildren().keySet()) {
 
+				
+				System.out.println("End Node Path:" + endNodePath);
+				System.out.println("Key for current node being looped through: " + key);
+				
+				
+				if (!endNodePath.isEmpty() && endNodePath.equals(key)) {
+					
+					continue;
+				
+				}
+				
 				nextNode = currentNode.getChild(key);
 
 				if (fullPath.length() == 0) {
@@ -429,10 +438,7 @@ public class Node {
 					nodePath = fullPath + "." + key;
 				}
 
-				if (this.selectedChildrenSatisfied(nodePath, whiteListedPaths)) {
-
-					outputRows = nextNode.treeMapRecurse(nextNode, nodePath, outputRows, whiteListedPaths);
-				}
+				outputRows = nextNode.treeMapRecurse(nextNode, nodePath, outputRows, endNodePath);
 			}
 		}
 
@@ -448,13 +454,12 @@ public class Node {
 	 * @param whiteListedPaths
 	 * @return
 	 */
-	private boolean selectedChildrenSatisfied(String nodePath, HashSet<String> whiteListedPaths) {
-		
+	private boolean nodePathWhiteListed(String nodePath, HashSet<String> whiteListedPaths) {
+
 		if (whiteListedPaths.isEmpty()) {
 
 			return true;
-		}
-		else if (whiteListedPaths.contains(Statement.cleanRootFromString(nodePath))) {
+		} else if (whiteListedPaths.contains(Statement.cleanRootFromString(nodePath))) {
 
 			return true;
 		}

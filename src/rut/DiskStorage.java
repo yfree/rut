@@ -18,6 +18,7 @@ The Disk Storage object stores and retrieves the database to and from permanent 
 The public methods offered by a DiskStorage object are:
 
 * ConcurrentHashMap<String, ConcurrentHashMap<String, Node>> readDataMapFromDisk() 
+* void writeDataMapToDisk(ConcurrentHashMap<String, ConcurrentHashMap<String, Node>> dataMap)
 
 The database is stored in a file called master.database.
 

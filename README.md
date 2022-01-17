@@ -7,19 +7,15 @@ The full user guide can be found here [Rut Database and Rut Querying Language Us
 
 Why I built Rut Database
 ---
-I believe that databases are the coolest thing there is in IT. So why is it that we are using SQL and its decrepit equivalents instead of something modern and fresh as we do in every other aspect of computing? Databases deserve better, progammers deserve better, and end users deserve better.
+I believe that databases are the coolest thing there is in IT. So why is it that we are using SQL and its decrepit equivalents instead of something modern and fresh as we do in every other aspect of computing?
 
 What is Rut Database?
 ---
-Rut Database is a full service database server that can be used for anything from small websites to massive enterprise applications. Rut is just as powerful as a SQL Database or an XML implementation, but much simpler - fueled by a unique and elegant querying language, (Rut Querying Language). Rut is free as in free beer, free as in awesome. Free as in not Oracle or DB2.
+Rut Database is a full service database server that can be used for anything from small websites to massive enterprise applications. Rut is just as powerful as a SQL Database or an XML implementation, but much simpler - fueled by a unique and elegant querying language, (Rut Querying Language). Rut is free as in free beer, free as in awesome.
 
 Premise
 ---
 The Rut Databse model approaches data similiar to XML, with hierarchical nodes that contain names and values. But just because Rut is hierarchical doesn't mean that Rut doesn't understand relations between records nor does it mean that Rut Database has to be difficult to operate in order to perform powerful tasks. This is not one of those terrible hierarchical DBs from 50 years ago. Rut Database is designed to place user friendliness before all other aspects of the language, and as such, database operations are extremely flexible. It is powered by an elegant querying language that has an easy-to-learn consistent syntax, which is how the magic happens. Rut Database contains all of the sophistication of XML and SQL but none of their pain. Although, Rut acts very similiarly to XML in terms of its structure, Rut does not actually ever use XML to store its data, it has its own construct for that.
-
-Is Rut Database Better than a SQL Database Server?
----
-Yes, that's the idea. [Here are some reasons why](RUT.md#introduction-to-rut-querying-language).
 
 Rut Database
 ---

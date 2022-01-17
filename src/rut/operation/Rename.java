@@ -26,14 +26,14 @@ public class Rename extends Operation {
 		String childName = "";
 		ConcurrentHashMap<String, Node> theChildren = new ConcurrentHashMap<String, Node>();
 
-		LinkedHashSet<String> dataToProcessOrder = this.generateDescendantDataToProcess(fullPath, fetchedNode);
+		LinkedHashSet<String> dataToProcessOrder = this.generateChildDataToProcess(fullPath, fetchedNode);
 		String resultLine = "";
 		
 		
 		/* A parent Node matches each child path in the DataToProcess container */
 		for (String fullChildPath : dataToProcessOrder) {
 
-			parentNode = this.dataToProcess.get(fullChildPath);
+			parentNode = this.childDataToProcess.get(fullChildPath);
 			theChildren = parentNode.getChildren();
 			childName = this.memory.parseNodeName(fullChildPath);
 
